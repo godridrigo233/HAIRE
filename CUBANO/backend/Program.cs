@@ -31,3 +31,13 @@ app.UseCors("PermitirReact");
 app.MapControllers();
 
 app.Run();
+try 
+{
+    var supabase = new Supabase.Client(supabaseUrl, supabaseKey, options);
+    await supabase.InitializeAsync();
+    Console.WriteLine("✅ Conexión inicial con Supabase establecida.");
+}
+catch (Exception ex) 
+{
+    Console.WriteLine($"❌ Error conectando a Supabase: {ex.Message}");
+}
