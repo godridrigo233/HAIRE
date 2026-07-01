@@ -1,0 +1,292 @@
+"use client"
+
+import {
+  useState,
+  useRef,
+  useCallback,
+  type DragEvent,
+  type ChangeEvent,
+} from "react"
+import {
+  UploadCloud,
+  FileText,
+  X,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  Sparkles,
+} from "lucide-react"
+
+import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
+
+type EstadoArchivo =
+  | "en_cola"
+  | "subiendo"
+  | "procesando"
+  | "completado"
+  | "error"
+
+interface ArchivoCV {
+  id: string
+  nombre: string
+  tamanoKb: number
+  progreso: number
+  estado: EstadoArchivo
+  error?: string
+}
+
+const MAX_BYTES = 10 * 1024 * 1024 // 10MB
+
+const estadoConfig: Record<
+  EstadoArchivo,
+  { label: string; className: string; icon: React.ReactNode }
+> = {
+  en_cola: {
+    label: "En cola",
+    className: "text-muted-foreground",
+    icon: <FileText className="size-4" />,
+  },
+  subiendo: {
+    label: "Subiendo",
+    className: "text-brand",
+    icon: <Loader2 className="size-4 animate-spin" />,
+  },
+  procesando: {
+    label: "Procesando con IA",
+    className: "text-brand",
+    icon: <Sparkles className="size-4" />,
+  },
+  completado: {
+    label: "Completado",
+    className: "text-success",
+    icon: <CheckCircle2 className="size-4" />,
+  },
+  error: {
+    label: "Error",
+    className: "text-destructive",
+    icon: <AlertCircle className="size-4" />,
+  },
+}
+
+export function CvUploader() {
+  const [archivos, setArchivos] = useState<ArchivoCV[]>([])
+  const [arrastrando, setArrastrando] = useState(false)
+  const [analizando, setAnalizando] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const agregarArchivos = useCallback((fileList: FileList) => {
+    const nuevos: ArchivoCV[] = []
+    Array.from(fileList).forEach((file) => {
+      const esPdf = file.type === "application/pdf"
+      const excedeTamano = file.size > MAX_BYTES
+      nuevos.push({
+        id: `${file.name}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        nombre: file.name,
+        tamanoKb: Math.round(file.size / 1024),
+        progreso: !esPdf || excedeTamano ? 100 : 0,
+        estado: !esPdf || excedeTamano ? "error" : "en_cola",
+        error: !esPdf
+          ? "Solo se aceptan archivos PDF"
+          : excedeTamano
+            ? "Supera el máximo de 10MB"
+            : undefined,
+      })
+    })
+    setArchivos((prev) => [...prev, ...nuevos])
+  }, [])
+
+  function handleDrop(e: DragEvent<HTMLDivElement>) {
+    e.preventDefault()
+    setArrastrando(false)
+    if (e.dataTransfer.files?.length) agregarArchivos(e.dataTransfer.files)
+  }
+
+  function handleInput(e: ChangeEvent<HTMLInputElement>) {
+    if (e.target.files?.length) agregarArchivos(e.target.files)
+    e.target.value = ""
+  }
+
+  function eliminar(id: string) {
+    setArchivos((prev) => prev.filter((a) => a.id !== id))
+  }
+
+  // Simula subida + análisis con IA de los archivos en cola.
+  function iniciarAnalisis() {
+    setAnalizando(true)
+    const enCola = archivos.filter((a) => a.estado === "en_cola")
+
+    enCola.forEach((archivo, index) => {
+      // Subida progresiva escalonada
+      const delayBase = index * 250
+      let progreso = 0
+      setArchivos((prev) =>
+        prev.map((a) =>
+          a.id === archivo.id ? { ...a, estado: "subiendo" } : a,
+        ),
+      )
+
+      const subir = setInterval(() => {
+        progreso += 20
+        setArchivos((prev) =>
+          prev.map((a) =>
+            a.id === archivo.id ? { ...a, progreso: Math.min(progreso, 100) } : a,
+          ),
+        )
+        if (progreso >= 100) {
+          clearInterval(subir)
+          // Pasa a procesando con IA
+          setArchivos((prev) =>
+            prev.map((a) =>
+              a.id === archivo.id ? { ...a, estado: "procesando" } : a,
+            ),
+          )
+          setTimeout(() => {
+            setArchivos((prev) =>
+              prev.map((a) =>
+                a.id === archivo.id ? { ...a, estado: "completado" } : a,
+              ),
+            )
+            setAnalizando(false)
+          }, 1200 + delayBase)
+        }
+      }, 200)
+    })
+  }
+
+  const hayEnCola = archivos.some((a) => a.estado === "en_cola")
+
+  return (
+    <div className="space-y-5">
+      {/* Zona drag & drop */}
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => inputRef.current?.click()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") inputRef.current?.click()
+        }}
+        onDragOver={(e) => {
+          e.preventDefault()
+          setArrastrando(true)
+        }}
+        onDragLeave={() => setArrastrando(false)}
+        onDrop={handleDrop}
+        className={cn(
+          "flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-12 text-center transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+          arrastrando
+            ? "border-brand bg-brand/5"
+            : "border-border bg-muted/30 hover:border-brand/50 hover:bg-muted/50",
+        )}
+      >
+        <div className="flex size-14 items-center justify-center rounded-full bg-brand/10 text-brand">
+          <UploadCloud className="size-7" />
+        </div>
+        <div>
+          <p className="font-medium text-foreground">
+            Arrastra los CVs aquí o haz clic para seleccionar archivos
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Puedes subir varios PDF a la vez · Máximo 10MB por archivo
+          </p>
+        </div>
+        <input
+          ref={inputRef}
+          type="file"
+          accept="application/pdf"
+          multiple
+          className="hidden"
+          onChange={handleInput}
+        />
+      </div>
+
+      {/* Lista de archivos */}
+      {archivos.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-foreground">
+              {archivos.length}{" "}
+              {archivos.length === 1 ? "archivo" : "archivos"}
+            </p>
+            <Button
+              onClick={iniciarAnalisis}
+              disabled={!hayEnCola || analizando}
+              className="bg-brand text-brand-foreground hover:bg-brand/90"
+            >
+              {analizando ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Sparkles className="size-4" />
+              )}
+              Iniciar Análisis de IA
+            </Button>
+          </div>
+
+          <ul className="space-y-2">
+            {archivos.map((a) => {
+              const cfg = estadoConfig[a.estado]
+              return (
+                <li
+                  key={a.id}
+                  className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5"
+                >
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                    <FileText className="size-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="truncate text-sm font-medium text-foreground">
+                        {a.nombre}
+                      </p>
+                      <span
+                        className={cn(
+                          "flex shrink-0 items-center gap-1 text-xs font-medium",
+                          cfg.className,
+                        )}
+                      >
+                        {cfg.icon}
+                        {cfg.label}
+                      </span>
+                    </div>
+                    {a.estado === "error" ? (
+                      <p className="mt-1 text-xs text-destructive">{a.error}</p>
+                    ) : (
+                      <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                        <div
+                          className={cn(
+                            "h-full rounded-full transition-all",
+                            a.estado === "completado"
+                              ? "bg-success"
+                              : "bg-brand",
+                          )}
+                          style={{
+                            width: `${
+                              a.estado === "procesando" ||
+                              a.estado === "completado"
+                                ? 100
+                                : a.progreso
+                            }%`,
+                          }}
+                        />
+                      </div>
+                    )}
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {(a.tamanoKb / 1024).toFixed(1)} MB
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => eliminar(a.id)}
+                    className="shrink-0 text-muted-foreground hover:text-destructive"
+                    aria-label={`Eliminar ${a.nombre}`}
+                  >
+                    <X className="size-4" />
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
