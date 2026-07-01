@@ -9,31 +9,35 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { CREDENCIALES_DEMO } from "@/lib/mock-data"
+import { api, ApiError } from "@/lib/api"
+import { guardarSesion } from "@/lib/auth"
 
 export default function LoginPage() {
   const router = useRouter()
   const [correo, setCorreo] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState(false)
+  const [mensajeError, setMensajeError] = useState("")
   const [cargando, setCargando] = useState(false)
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError(false)
     setCargando(true)
 
-    // Autenticación simulada
-    setTimeout(() => {
-      if (
-        correo.trim().toLowerCase() === CREDENCIALES_DEMO.correo &&
-        password === CREDENCIALES_DEMO.password
-      ) {
-        router.push("/dashboard")
-      } else {
-        setError(true)
-        setCargando(false)
-      }
-    }, 700)
+    try {
+      const { token, usuario } = await api.login(correo.trim(), password)
+      guardarSesion(token, usuario)
+      router.push("/dashboard")
+    } catch (err) {
+      setError(true)
+      setMensajeError(
+        err instanceof ApiError && err.status === 0
+          ? "No se pudo conectar con el servidor."
+          : "Credenciales incorrectas. Revisa tu correo y contraseña.",
+      )
+      setCargando(false)
+    }
   }
 
   return (
@@ -82,9 +86,7 @@ export default function LoginPage() {
                 className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive"
               >
                 <AlertCircle className="mt-0.5 size-4 shrink-0" />
-                <span>
-                  Credenciales incorrectas. Revisa tu correo y contraseña.
-                </span>
+                <span>{mensajeError}</span>
               </div>
             )}
 

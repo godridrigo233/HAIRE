@@ -18,6 +18,7 @@ import {
   CardDescription,
 } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
+import { api, ApiError } from "@/lib/api"
 
 interface Skill {
   nombre: string
@@ -31,6 +32,8 @@ export default function NuevaVacantePage() {
   const [experiencia, setExperiencia] = useState("")
   const [skillInput, setSkillInput] = useState("")
   const [skills, setSkills] = useState<Skill[]>([])
+  const [guardando, setGuardando] = useState(false)
+  const [error, setError] = useState("")
 
   function agregarSkill() {
     const nombre = skillInput.trim()
@@ -63,9 +66,28 @@ export default function NuevaVacantePage() {
     )
   }
 
-  function guardar() {
-    // Simulado: en la demo volvemos al listado de vacantes.
-    router.push("/vacantes")
+  async function guardar() {
+    setError("")
+    setGuardando(true)
+    try {
+      await api.crearVacante({
+        titulo_puesto: titulo.trim(),
+        descripcion: descripcion.trim() || undefined,
+        experiencia_minima_anios: Number(experiencia) || 0,
+        requerimientos: skills.map((s) => ({
+          nombre: s.nombre,
+          es_obligatoria: s.obligatoria,
+        })),
+      })
+      router.push("/vacantes")
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "No se pudo crear la vacante. Intenta de nuevo.",
+      )
+      setGuardando(false)
+    }
   }
 
   return (
@@ -197,16 +219,22 @@ export default function NuevaVacantePage() {
             />
           </div>
 
+          {error && (
+            <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {error}
+            </p>
+          )}
+
           <div className="flex justify-end gap-2 border-t border-border pt-4">
-            <Button variant="outline" onClick={() => router.back()}>
+            <Button variant="outline" onClick={() => router.back()} disabled={guardando}>
               Cancelar
             </Button>
             <Button
               onClick={guardar}
-              disabled={!titulo.trim()}
+              disabled={!titulo.trim() || guardando}
               className={cn("bg-brand text-brand-foreground hover:bg-brand/90")}
             >
-              Guardar vacante
+              {guardando ? "Guardando..." : "Guardar vacante"}
             </Button>
           </div>
         </CardContent>

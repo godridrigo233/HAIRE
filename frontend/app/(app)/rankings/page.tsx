@@ -6,18 +6,23 @@ import { PageHeader } from "@/components/haire/page-header"
 import { RankingView } from "@/components/haire/ranking-view"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-import { vacantes } from "@/lib/mock-data"
+import { type Vacante } from "@/lib/mock-data"
+import { api } from "@/lib/api"
 
 export default function RankingsPage() {
-  const vacantesActivas = vacantes.filter((v) => v.candidatos > 0)
-  const [seleccion, setSeleccion] = useState(vacantesActivas[0]?.id ?? "")
-  const [cargando, setCargando] = useState(true)
+  const [vacantesActivas, setVacantesActivas] = useState<Vacante[]>([])
+  const [seleccion, setSeleccion] = useState("")
 
   useEffect(() => {
-    setCargando(true)
-    const t = setTimeout(() => setCargando(false), 500)
-    return () => clearTimeout(t)
-  }, [seleccion])
+    api
+      .listarVacantes()
+      .then((vs) => {
+        const conCandidatos = vs.filter((v) => v.candidatos > 0)
+        setVacantesActivas(conCandidatos)
+        setSeleccion((prev) => prev || conCandidatos[0]?.id || "")
+      })
+      .catch(() => setVacantesActivas([]))
+  }, [])
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -51,7 +56,18 @@ export default function RankingsPage() {
         </CardContent>
       </Card>
 
-      {seleccion && <RankingView vacanteId={seleccion} cargando={cargando} />}
+      {seleccion ? (
+        <RankingView vacanteId={seleccion} />
+      ) : (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-sm text-muted-foreground">
+              Aún no hay vacantes con candidatos analizados. Sube CVs a una vacante
+              para ver su ranking aquí.
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

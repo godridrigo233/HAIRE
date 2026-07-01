@@ -24,7 +24,8 @@ import {
 } from "@/components/ui/card"
 import { ScoreCircle } from "@/components/haire/score-circle"
 import { cn } from "@/lib/utils"
-import { getCandidato, getVacante, nivelColor } from "@/lib/mock-data"
+import { nivelColor, type Candidato, type Vacante } from "@/lib/mock-data"
+import { api, ApiError } from "@/lib/api"
 
 export default function CandidatoDetallePage({
   params,
@@ -32,16 +33,26 @@ export default function CandidatoDetallePage({
   params: Promise<{ id: string }>
 }) {
   const { id } = use(params)
-  const candidato = getCandidato(id)
+  const [candidato, setCandidato] = useState<Candidato | null>(null)
+  const [vacante, setVacante] = useState<Vacante | null>(null)
   const [cargando, setCargando] = useState(true)
+  const [noExiste, setNoExiste] = useState(false)
 
   useEffect(() => {
-    const t = setTimeout(() => setCargando(false), 500)
-    return () => clearTimeout(t)
-  }, [])
+    api
+      .getCandidato(id)
+      .then((c) => {
+        setCandidato(c)
+        return api.getVacante(c.vacanteId).then(setVacante).catch(() => {})
+      })
+      .catch((err) => {
+        if (err instanceof ApiError && err.status === 404) setNoExiste(true)
+      })
+      .finally(() => setCargando(false))
+  }, [id])
 
-  if (!candidato) notFound()
-  const vacante = getVacante(candidato.vacanteId)
+  if (noExiste) notFound()
+  if (!candidato) return null
 
   return (
     <div className="mx-auto max-w-4xl">

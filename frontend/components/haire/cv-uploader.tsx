@@ -19,6 +19,7 @@ import {
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { api, ApiError } from "@/lib/api"
 
 type EstadoArchivo =
   | "en_cola"
@@ -34,6 +35,7 @@ interface ArchivoCV {
   progreso: number
   estado: EstadoArchivo
   error?: string
+  file?: File
 }
 
 const MAX_BYTES = 10 * 1024 * 1024 // 10MB
@@ -69,7 +71,13 @@ const estadoConfig: Record<
   },
 }
 
-export function CvUploader() {
+export function CvUploader({
+  vacanteId,
+  onCompletado,
+}: {
+  vacanteId: string
+  onCompletado?: () => void
+}) {
   const [archivos, setArchivos] = useState<ArchivoCV[]>([])
   const [arrastrando, setArrastrando] = useState(false)
   const [analizando, setAnalizando] = useState(false)
@@ -91,6 +99,7 @@ export function CvUploader() {
           : excedeTamano
             ? "Supera el máximo de 10MB"
             : undefined,
+        file: !esPdf || excedeTamano ? undefined : file,
       })
     })
     setArchivos((prev) => [...prev, ...nuevos])
@@ -111,47 +120,41 @@ export function CvUploader() {
     setArchivos((prev) => prev.filter((a) => a.id !== id))
   }
 
-  // Simula subida + análisis con IA de los archivos en cola.
-  function iniciarAnalisis() {
+  function actualizar(id: string, cambios: Partial<ArchivoCV>) {
+    setArchivos((prev) => prev.map((a) => (a.id === id ? { ...a, ...cambios } : a)))
+  }
+
+  // Sube y analiza cada CV en cola, secuencialmente (evita rate limits de Groq).
+  async function iniciarAnalisis() {
+    if (!vacanteId) return
     setAnalizando(true)
-    const enCola = archivos.filter((a) => a.estado === "en_cola")
+    const enCola = archivos.filter((a) => a.estado === "en_cola" && a.file)
+    let algunoCompletado = false
 
-    enCola.forEach((archivo, index) => {
-      // Subida progresiva escalonada
-      const delayBase = index * 250
-      let progreso = 0
-      setArchivos((prev) =>
-        prev.map((a) =>
-          a.id === archivo.id ? { ...a, estado: "subiendo" } : a,
-        ),
-      )
+    for (const archivo of enCola) {
+      try {
+        actualizar(archivo.id, { estado: "subiendo", progreso: 40 })
+        const { id_curriculum } = await api.uploadCv(vacanteId, archivo.file!)
 
-      const subir = setInterval(() => {
-        progreso += 20
-        setArchivos((prev) =>
-          prev.map((a) =>
-            a.id === archivo.id ? { ...a, progreso: Math.min(progreso, 100) } : a,
-          ),
-        )
-        if (progreso >= 100) {
-          clearInterval(subir)
-          // Pasa a procesando con IA
-          setArchivos((prev) =>
-            prev.map((a) =>
-              a.id === archivo.id ? { ...a, estado: "procesando" } : a,
-            ),
-          )
-          setTimeout(() => {
-            setArchivos((prev) =>
-              prev.map((a) =>
-                a.id === archivo.id ? { ...a, estado: "completado" } : a,
-              ),
-            )
-            setAnalizando(false)
-          }, 1200 + delayBase)
-        }
-      }, 200)
-    })
+        actualizar(archivo.id, { estado: "procesando", progreso: 100 })
+        await api.analizarCv(id_curriculum)
+
+        actualizar(archivo.id, { estado: "completado" })
+        algunoCompletado = true
+      } catch (err) {
+        actualizar(archivo.id, {
+          estado: "error",
+          progreso: 100,
+          error:
+            err instanceof ApiError
+              ? err.message
+              : "Error al procesar el archivo",
+        })
+      }
+    }
+
+    setAnalizando(false)
+    if (algunoCompletado) onCompletado?.()
   }
 
   const hayEnCola = archivos.some((a) => a.estado === "en_cola")

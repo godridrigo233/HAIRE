@@ -25,27 +25,32 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  vacantes,
-  totalVacantesActivas,
-  totalPostulantes,
-  formatearFecha,
-  usuarioActual,
-} from "@/lib/mock-data"
+import { formatearFecha, type Vacante } from "@/lib/mock-data"
+import { api } from "@/lib/api"
+import { getUsuario } from "@/lib/auth"
 
 export default function DashboardPage() {
   const router = useRouter()
   const [cargando, setCargando] = useState(true)
+  const [vacantes, setVacantes] = useState<Vacante[]>([])
+  const [nombre, setNombre] = useState("")
 
   useEffect(() => {
-    const t = setTimeout(() => setCargando(false), 600)
-    return () => clearTimeout(t)
+    setNombre(getUsuario()?.nombres ?? "")
+    api
+      .listarVacantes()
+      .then(setVacantes)
+      .catch(() => setVacantes([]))
+      .finally(() => setCargando(false))
   }, [])
+
+  const totalVacantesActivas = vacantes.filter((v) => v.estado === "activa").length
+  const totalPostulantes = vacantes.reduce((acc, v) => acc + v.candidatos, 0)
 
   return (
     <div className="mx-auto max-w-6xl">
       <PageHeader
-        title={`Hola, ${usuarioActual.nombres}`}
+        title={`Hola, ${nombre}`}
         description="Este es el resumen de tus procesos de selección."
       >
         <Link

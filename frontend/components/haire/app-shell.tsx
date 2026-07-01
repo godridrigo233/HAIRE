@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, type ReactNode } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
@@ -41,7 +41,13 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog"
-import { usuarioActual } from "@/lib/mock-data"
+import {
+  getToken,
+  getUsuario,
+  cerrarSesion,
+  iniciales as inicialesDe,
+  type UsuarioSesion,
+} from "@/lib/auth"
 
 const navItems = [
   { href: "/dashboard", label: "Panel de Control", icon: LayoutDashboard },
@@ -54,6 +60,26 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [usuario, setUsuario] = useState<UsuarioSesion | null>(null)
+
+  // Protección de rutas: sin token, de vuelta al login.
+  useEffect(() => {
+    if (!getToken()) {
+      router.replace("/")
+      return
+    }
+    setUsuario(getUsuario())
+  }, [router])
+
+  function logout() {
+    cerrarSesion()
+    router.replace("/")
+  }
+
+  // Mientras se resuelve la sesión no renderizamos la app (evita parpadeo).
+  if (!usuario) return null
+
+  const nombreCompleto = `${usuario.nombres} ${usuario.apellidos}`.trim()
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -117,15 +143,15 @@ export function AppShell({ children }: { children: ReactNode }) {
               >
                 <Avatar className="size-8">
                   <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
-                    {usuarioActual.iniciales}
+                    {inicialesDe(usuario)}
                   </AvatarFallback>
                 </Avatar>
                 <div className="hidden text-left leading-tight sm:block">
                   <p className="text-sm font-medium text-foreground">
-                    {usuarioActual.nombres} {usuarioActual.apellidos}
+                    {nombreCompleto}
                   </p>
                   <p className="text-xs text-muted-foreground capitalize">
-                    {usuarioActual.rol}
+                    {usuario.rol}
                   </p>
                 </div>
                 <ChevronDown className="size-4 text-muted-foreground" />
@@ -133,11 +159,9 @@ export function AppShell({ children }: { children: ReactNode }) {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>
                   <div className="leading-tight">
-                    <p className="text-sm font-medium">
-                      {usuarioActual.nombres} {usuarioActual.apellidos}
-                    </p>
+                    <p className="text-sm font-medium">{nombreCompleto}</p>
                     <p className="text-xs font-normal text-muted-foreground">
-                      {usuarioActual.correo}
+                      {usuario.correo}
                     </p>
                   </div>
                 </DropdownMenuLabel>
@@ -146,7 +170,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <Settings className="size-4" />
                   Configuración
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => router.push("/")}>
+                <DropdownMenuItem onClick={logout}>
                   <LogOut className="size-4" />
                   Cerrar sesión
                 </DropdownMenuItem>
@@ -203,13 +227,11 @@ export function AppShell({ children }: { children: ReactNode }) {
               </div>
               <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
                 <span className="text-muted-foreground">Nombre</span>
-                <span className="font-medium">{usuarioActual.nombres} {usuarioActual.apellidos}</span>
+                <span className="font-medium">{nombreCompleto}</span>
                 <span className="text-muted-foreground">Correo</span>
-                <span className="font-medium truncate">{usuarioActual.correo}</span>
+                <span className="font-medium truncate">{usuario.correo}</span>
                 <span className="text-muted-foreground">Rol</span>
-                <span className="font-medium capitalize">{usuarioActual.rol}</span>
-                <span className="text-muted-foreground">Empresa</span>
-                <span className="font-medium">{usuarioActual.empresa}</span>
+                <span className="font-medium capitalize">{usuario.rol}</span>
               </div>
             </div>
 

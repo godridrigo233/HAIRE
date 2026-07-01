@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 import { PageHeader } from "@/components/haire/page-header"
 import { CvUploader } from "@/components/haire/cv-uploader"
@@ -12,11 +12,23 @@ import {
   CardDescription,
 } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-import { vacantes } from "@/lib/mock-data"
+import { type Vacante } from "@/lib/mock-data"
+import { api } from "@/lib/api"
 
 export default function CargarPage() {
-  const activas = vacantes.filter((v) => v.estado === "activa")
-  const [seleccion, setSeleccion] = useState(activas[0]?.id ?? "")
+  const [activas, setActivas] = useState<Vacante[]>([])
+  const [seleccion, setSeleccion] = useState("")
+
+  useEffect(() => {
+    api
+      .listarVacantes()
+      .then((vs) => {
+        const activasV = vs.filter((v) => v.estado === "activa")
+        setActivas(activasV)
+        setSeleccion((prev) => prev || activasV[0]?.id || "")
+      })
+      .catch(() => setActivas([]))
+  }, [])
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -33,24 +45,32 @@ export default function CargarPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="flex flex-wrap gap-2">
-            {activas.map((v) => (
-              <button
-                key={v.id}
-                onClick={() => setSeleccion(v.id)}
-                className={cn(
-                  "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
-                  seleccion === v.id
-                    ? "border-brand bg-brand/10 text-foreground"
-                    : "border-border text-muted-foreground hover:bg-muted",
-                )}
-              >
-                {v.titulo}
-              </button>
-            ))}
-          </div>
+          {activas.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
+              No tienes vacantes activas. Crea una vacante primero para poder subir CVs.
+            </p>
+          ) : (
+            <>
+              <div className="flex flex-wrap gap-2">
+                {activas.map((v) => (
+                  <button
+                    key={v.id}
+                    onClick={() => setSeleccion(v.id)}
+                    className={cn(
+                      "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                      seleccion === v.id
+                        ? "border-brand bg-brand/10 text-foreground"
+                        : "border-border text-muted-foreground hover:bg-muted",
+                    )}
+                  >
+                    {v.titulo}
+                  </button>
+                ))}
+              </div>
 
-          <CvUploader />
+              {seleccion && <CvUploader vacanteId={seleccion} />}
+            </>
+          )}
         </CardContent>
       </Card>
     </div>

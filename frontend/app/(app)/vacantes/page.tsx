@@ -17,15 +17,20 @@ import {
 } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
-import { vacantes, formatearFecha } from "@/lib/mock-data"
+import { formatearFecha, type Vacante } from "@/lib/mock-data"
+import { api } from "@/lib/api"
 
 export default function VacantesPage() {
   const router = useRouter()
   const [cargando, setCargando] = useState(true)
+  const [vacantes, setVacantes] = useState<Vacante[]>([])
 
   useEffect(() => {
-    const t = setTimeout(() => setCargando(false), 550)
-    return () => clearTimeout(t)
+    api
+      .listarVacantes()
+      .then(setVacantes)
+      .catch(() => setVacantes([]))
+      .finally(() => setCargando(false))
   }, [])
 
   return (
@@ -45,6 +50,16 @@ export default function VacantesPage() {
           Nueva Vacante
         </Link>
       </PageHeader>
+
+      {!cargando && vacantes.length === 0 && (
+        <Card className="py-12 text-center">
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Aún no tienes vacantes. Crea la primera para empezar a evaluar candidatos.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {cargando

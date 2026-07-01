@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Sparkles, Trophy } from "lucide-react"
 
@@ -17,19 +18,32 @@ import {
 } from "@/components/ui/table"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-import { getCandidatosDeVacante, getRecomendado } from "@/lib/mock-data"
+import type { Candidato } from "@/lib/mock-data"
+import { api } from "@/lib/api"
 
 export function RankingView({
   vacanteId,
-  cargando,
+  cargando: cargandoExterno = false,
 }: {
   vacanteId: string
-  cargando: boolean
+  cargando?: boolean
 }) {
-  const candidatos = getCandidatosDeVacante(vacanteId)
-  const recomendado = getRecomendado(vacanteId)
+  const [candidatos, setCandidatos] = useState<Candidato[]>([])
+  const [cargandoDatos, setCargandoDatos] = useState(true)
 
-  if (cargando) {
+  useEffect(() => {
+    setCargandoDatos(true)
+    api
+      .getCandidatosDeVacante(vacanteId)
+      .then(setCandidatos)
+      .catch(() => setCandidatos([]))
+      .finally(() => setCargandoDatos(false))
+  }, [vacanteId])
+
+  // La API ya devuelve ordenado por porcentaje desc.
+  const recomendado = candidatos.find((c) => c.esRecomendado) ?? candidatos[0]
+
+  if (cargandoExterno || cargandoDatos) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-40 w-full rounded-xl" />

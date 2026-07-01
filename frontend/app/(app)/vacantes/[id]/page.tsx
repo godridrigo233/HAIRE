@@ -17,7 +17,8 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-import { getVacante, formatearFecha } from "@/lib/mock-data"
+import { formatearFecha, type Vacante } from "@/lib/mock-data"
+import { api, ApiError } from "@/lib/api"
 
 type Tab = "ranking" | "cargar"
 
@@ -27,16 +28,23 @@ export default function VacanteDetallePage({
   params: Promise<{ id: string }>
 }) {
   const { id } = use(params)
-  const vacante = getVacante(id)
+  const [vacante, setVacante] = useState<Vacante | null>(null)
   const [tab, setTab] = useState<Tab>("ranking")
   const [cargando, setCargando] = useState(true)
+  const [noExiste, setNoExiste] = useState(false)
 
   useEffect(() => {
-    const t = setTimeout(() => setCargando(false), 500)
-    return () => clearTimeout(t)
-  }, [])
+    api
+      .getVacante(id)
+      .then(setVacante)
+      .catch((err) => {
+        if (err instanceof ApiError && err.status === 404) setNoExiste(true)
+      })
+      .finally(() => setCargando(false))
+  }, [id])
 
-  if (!vacante) notFound()
+  if (noExiste) notFound()
+  if (!vacante) return null
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -134,7 +142,10 @@ export default function VacanteDetallePage({
       {tab === "ranking" ? (
         <RankingView vacanteId={vacante.id} cargando={cargando} />
       ) : (
-        <CvUploader />
+        <CvUploader
+          vacanteId={vacante.id}
+          onCompletado={() => setTab("ranking")}
+        />
       )}
     </div>
   )
