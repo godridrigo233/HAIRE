@@ -91,6 +91,7 @@ class HabilidadDetectada(BaseModel):
 class AnalisisIA(BaseModel):
     """Forma estricta que se le exige a Groq devolver (JSON mode)."""
     es_cv: bool = Field(..., description="True si es un CV válido, False si es otro documento")
+    justificacion_descarte: Optional[str] = None
     nombre_candidato: Optional[str] = None
     correo: Optional[str] = None
     telefono: Optional[str] = None
