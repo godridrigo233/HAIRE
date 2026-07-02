@@ -18,11 +18,13 @@ _GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 _TIMEOUT_SEG = 60.0
 
 _SYSTEM_PROMPT = (
-    "Eres un analista de reclutamiento experto. Recibes el texto plano de un CV y "
-    "los requisitos de una vacante, y evalúas la compatibilidad del candidato. "
+    "Eres un analista de reclutamiento experto. Tu primera tarea crítica es verificar si el texto "
+    "recibido es realmente un Currículum Vitae (CV) o perfil profesional. "
     "Responde SIEMPRE en español y ÚNICAMENTE con un objeto JSON válido, sin texto "
     "adicional, con exactamente esta forma:\n"
     "{\n"
+    '  "es_cv": boolean,                      // true si es un CV válido, false si es una receta, cuento, etc.\n'
+    '  "justificacion_descarte": "string|null", // si es_cv es false, explica por qué lo descartas\n'
     '  "nombre_candidato": "string|null",     // nombre completo tal como aparece en el CV\n'
     '  "correo": "string|null",               // email del candidato si aparece\n'
     '  "telefono": "string|null",             // teléfono del candidato si aparece\n'
@@ -31,9 +33,8 @@ _SYSTEM_PROMPT = (
     '  "es_recomendado": boolean,\n'
     '  "justificacion": "string"              // 2-4 frases, en español\n'
     "}\n"
-    "Extrae el nombre, correo y teléfono directamente del texto del CV (usa null si no "
-    "aparecen). El porcentaje debe reflejar cuántos requisitos obligatorios cumple, la "
-    "experiencia y la relevancia general. Sé estricto y objetivo."
+    "Si el documento NO es un CV, pon 'es_cv' en false, explica la razón en 'justificacion_descarte' y deja el resto de campos vacíos o en cero. "
+    "Si SÍ es un CV, pon 'es_cv' en true, extrae el nombre y datos de contacto tal cual están escritos, y evalúa la compatibilidad estrictamente."
 )
 
 

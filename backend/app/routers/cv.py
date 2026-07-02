@@ -1,6 +1,7 @@
 """Endpoints de CV: upload, análisis con IA y scoring simple."""
 from __future__ import annotations
-
+import re
+import unicodedata
 from decimal import Decimal
 from typing import Optional
 from uuid import UUID
@@ -47,6 +48,7 @@ _MAX_BYTES = 10 * 1024 * 1024  # 10 MB (límite del bucket `cv`)
 
 
 @router.post("/upload", response_model=UploadResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/upload", response_model=UploadResponse, status_code=status.HTTP_201_CREATED)
 def upload_cv(
     id_vacante: UUID = Form(...),
     archivo: UploadFile = File(...),
@@ -77,9 +79,14 @@ def upload_cv(
     except Exception as exc:
         raise HTTPException(status_code=422, detail=f"No se pudo leer el PDF: {exc}")
 
-    # Subida a Supabase Storage
+    # Limpiar el nombre del archivo (Supabase rechaza espacios y tildes en las keys)
+    nombre_original = archivo.filename or "cv.pdf"
+    nombre_sin_tildes = unicodedata.normalize('NFKD', nombre_original).encode('ASCII', 'ignore').decode('utf-8')
+    nombre_limpio = re.sub(r'[^\w\.-]', '_', nombre_sin_tildes)
+
+    # Subida a Supabase Storage con el nombre limpio
     try:
-        url = storage_service.subir_cv(contenido, archivo.filename or "cv.pdf")
+        url = storage_service.subir_cv(contenido, nombre_limpio)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Error al subir a Storage: {exc}")
 
@@ -163,7 +170,16 @@ def analizar_cv(
         raise HTTPException(status_code=502, detail=f"Error al analizar con IA: {exc}")
 
     analisis = resultado.analisis
+    if not analisis.es_cv:
+        curriculum.estado_lectura = "descartado"
+        db.commit()
+        
 
+        mensaje_error = analisis.justificacion_descarte or "El documento subido no es un Currículum Vitae válido."
+        raise HTTPException(
+            status_code=400, 
+            detail=f"DOCUMENTO_INVALIDO: {mensaje_error}"
+        )
     # Completar datos del postulante con lo que extrajo la IA del CV
     postulante = db.get(Postulante, curriculum.id_postulante)
     if postulante is not None:
