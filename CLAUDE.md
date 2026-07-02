@@ -39,7 +39,10 @@ Todo esto desplegado — frontend y backend con URLs reales, no solo corriendo e
 ## Alcance del MVP de 48h — qué entra y qué NO
 
 **Entra:**
+<<<<<<< HEAD
 
+=======
+>>>>>>> 33aed38fd30f646db7ace28bd874752d26989b55
 - Login básico
 - Crear vacante (formulario mínimo: título + habilidades + experiencia)
 - Subir 10-30 CVs a la vez (drag & drop, procesados en paralelo controlado)
@@ -49,7 +52,10 @@ Todo esto desplegado — frontend y backend con URLs reales, no solo corriendo e
 - Deploy real con URL pública
 
 **NO entra en esta fase (es parte del Acta completo, se hace en las 12 semanas después):**
+<<<<<<< HEAD
 
+=======
+>>>>>>> 33aed38fd30f646db7ace28bd874752d26989b55
 - Transcripción de audio / diarización de entrevistas
 - Integración con Microsoft Teams
 - Exportar el reporte en PDF
@@ -63,6 +69,49 @@ señal de que me estoy desviando del alcance de la PoC.
 
 ---
 
+<<<<<<< HEAD
+=======
+## Plan de fases de la PoC de 48h (por bloques de horas)
+
+**Bloque 1 — Horas 0 a 6: Cimientos en paralelo** (los 5 devs trabajan simultáneo, sin pisarse)
+- Kevin: repo en GitHub + Supabase creado (proyecto + bucket de Storage) + estructura de carpetas backend/frontend vacías pero corriendo en local
+- Piero: tablas mínimas en Supabase — `usuarios`, `vacantes`, `postulantes`, `curriculum`, `evaluaciones` (5 tablas; el resto se agrega si sobra tiempo)
+- Gómez: cuenta Groq + prompt de extracción probado a mano (Postman/curl), sin backend todavía — solo validar que el modelo responde bien
+- Arenas: scaffold del frontend (Vite+React+Tailwind+shadcn) + pantalla de login copiando el diseño de la mockup
+- Dev 5: `.env.example`, Docker compose local, documentación de cómo levantar el proyecto — y apoya a quien se atrase
+
+> Checkpoint hora 6: todos pueden correr el proyecto en su máquina y ven las mismas tablas en Supabase.
+
+**Bloque 2 — Horas 6 a 20: Backend funcional**
+- Piero: `POST /auth/login`, `POST /vacantes`, `GET /vacantes`
+- Gómez: `POST /cv/upload` (guarda en Storage) + `POST /cv/{id}/analizar` (extrae texto con pypdf + manda a Groq + valida el JSON con Pydantic)
+- Dev 5: apoya a Piero/Gómez en lo que se trabe; arma el endpoint de scoring simple (compara habilidades del CV contra requisitos de la vacante)
+- Arenas: frontend — pantalla de crear vacante + pantalla de upload de CV (con mocks por ahora)
+- Kevin: deploy temprano — backend en Render, frontend en Vercel, aunque esté vacío, para no dejar el deploy para el final
+
+> Checkpoint hora 20: subir un CV por Postman y recibir un JSON con habilidades extraídas, de verdad, contra Groq.
+
+**Bloque 3 — Horas 20 a 34: Conectar todo** (todo el equipo en el mismo flujo, el corazón de la demo)
+- Frontend conectado al backend real (no más mocks): login real, crear vacante real, subir CV real
+- Pantalla de resultado mostrando el % de compatibilidad y las habilidades detectadas (reusar el diseño de "Análisis de IA del Candidato" de la mockup)
+- Lista simple de candidatos por vacante, ordenada por puntaje
+
+> Checkpoint hora 34: flujo completo de principio a fin funcionando en local: login → crear vacante → subir 2 CVs → ver ranking.
+
+**Bloque 4 — Horas 34 a 44: Deploy final + pulido visual**
+- Deploy de la versión conectada (no la vacía del bloque 2)
+- Revisar que funcione desde otro dispositivo/red, no solo la wifi del equipo
+- Ajustes de UI rápidos: que se vea ordenado, sin que tenga que ser perfecto
+- Probar con 3-4 CVs reales distintos para asegurar que no se rompe con casos comunes
+
+**Bloque 5 — Horas 44 a 48: Cierre**
+- Script de demo: orden exacto de clicks, qué CV usar
+- Usuario y vacante de prueba ya precargados en la BD (para no perder tiempo creándolos en vivo)
+- Captura/video de respaldo por si la URL falla en el momento
+
+---
+
+>>>>>>> 33aed38fd30f646db7ace28bd874752d26989b55
 ## Stack tecnológico decidido
 
 - **Backend:** Python 3.11 + FastAPI + SQLAlchemy 2.0 + Pydantic v2. (Decisión ya tomada:
@@ -134,7 +183,10 @@ coincidir sin necesidad de mapeo.
 
 **Antes de proponer cualquier plan, corre estas verificaciones y repórtame el estado
 real:**
+<<<<<<< HEAD
 
+=======
+>>>>>>> 33aed38fd30f646db7ace28bd874752d26989b55
 ```
 git status
 git log --oneline -10
