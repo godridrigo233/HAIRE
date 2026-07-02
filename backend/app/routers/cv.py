@@ -50,6 +50,7 @@ _MAX_BYTES = 10 * 1024 * 1024  # 10 MB (límite del bucket `cv`)
 @router.post("/upload", response_model=UploadResponse, status_code=status.HTTP_201_CREATED)
 @router.post("/upload", response_model=UploadResponse, status_code=status.HTTP_201_CREATED)
 def upload_cv(
+    print("DEBUG: Iniciando upload_cv")
     id_vacante: UUID = Form(...),
     archivo: UploadFile = File(...),
     nombres: Optional[str] = Form(None),
@@ -68,6 +69,7 @@ def upload_cv(
         raise HTTPException(status_code=404, detail="Vacante no encontrada")
 
     contenido = archivo.file.read()
+    print(f"DEBUG: Archivo leído, tamaño: {len(contenido)} bytes")
     if not contenido:
         raise HTTPException(status_code=400, detail="El archivo está vacío")
     if len(contenido) > _MAX_BYTES:
@@ -76,7 +78,9 @@ def upload_cv(
     # Extracción de texto
     try:
         texto = pdf_service.extraer_texto_de_pdf(contenido)
+        print("DEBUG: Texto extraído exitosamente")
     except Exception as exc:
+        print(f"DEBUG: ERROR EN EXTRAER TEXTO: {exc}")
         raise HTTPException(status_code=422, detail=f"No se pudo leer el PDF: {exc}")
 
     # Limpiar el nombre del archivo (Supabase rechaza espacios y tildes en las keys)
