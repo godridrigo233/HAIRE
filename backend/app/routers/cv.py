@@ -59,7 +59,7 @@ def upload_cv(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_current_user),
 ) -> UploadResponse:
-    """Recibe un PDF, extrae su texto, lo sube a Storage y crea el curriculum."""
+    """Recibe un PDF, extrae su texto, lo sube a Storage y crea el curriculummm."""
     if archivo.content_type != "application/pdf":
         raise HTTPException(status_code=400, detail="El archivo debe ser un PDF")
 
