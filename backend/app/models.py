@@ -90,7 +90,7 @@ class Curriculum(Base):
     id_curriculum: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     id_postulante: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("postulantes.id_postulante"))
     id_vacante: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("vacantes.id_vacante"))
-    archivo_pdf_url: Mapped[str] = mapped_column(String)
+    archivo_pdf_url: Mapped[str] = mapped_column(Text)
     peso_archivo_kb: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     texto_plano_extraido: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     estado_lectura: Mapped[str] = mapped_column(String, default="pendiente")
