@@ -176,8 +176,14 @@ def analizar_cv(
     if not analisis.es_cv:
         curriculum.estado_lectura = "descartado"
         db.commit()
-
         mensaje_error = analisis.justificacion_descarte or "El documento subido no es un Currículum Vitae válido."
+        # --- ELIMINACIÓN AUTOMÁTICA ---
+        try:
+            storage_service.eliminar_cv(curriculum.archivo_pdf_url)
+            print(f"DEBUG: Archivo basura eliminado: {curriculum.archivo_pdf_url}")
+        except Exception as e:
+            print(f"DEBUG: Error al intentar borrar archivo basura: {e}")
+        # -------------------------------
         raise HTTPException(
             status_code=400,
             detail=f"DOCUMENTO_INVALIDO: {mensaje_error}"

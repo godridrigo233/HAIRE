@@ -38,3 +38,11 @@ def subir_cv(pdf_bytes: bytes, nombre_original: str) -> str:
 
     firmada = bucket.create_signed_url(ruta, _SIGNED_URL_TTL_SEG)
     return firmada.get("signedURL") or firmada.get("signedUrl") or ruta
+def eliminar_cv(self, url_publica: str):
+    """Extrae el nombre del archivo de la URL y lo borra del bucket 'cv'."""
+    # La URL suele ser: .../storage/v1/object/sign/cv/nombre-archivo.pdf
+    # Necesitamos obtener 'cv/nombre-archivo.pdf'
+    path_part = url_publica.split("/cv/")[-1]
+    file_path = f"cv/{path_part}"
+        # Usamos la llave de servicio (service_role) que tiene permisos de borrado
+    self.client.storage.from_("cv").remove([file_path])
