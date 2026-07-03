@@ -45,8 +45,9 @@ from app.services.skills_service import obtener_o_crear_habilidad
 router = APIRouter(prefix="/cv", tags=["cv"])
 
 _MAX_BYTES = 10 * 1024 * 1024  # 10 MB (límite del bucket `cv`)
+_MAX_CARACTERES_CV = 40000     # ~10 a 15 páginas de texto puro como máximo
 
-
+@router.post("/upload", response_model=UploadResponse, status_code=status.HTTP_201_CREATED)
 @router.post("/upload", response_model=UploadResponse, status_code=status.HTTP_201_CREATED)
 def upload_cv(
     id_vacante: UUID = Form(...),
@@ -74,13 +75,23 @@ def upload_cv(
         raise HTTPException(status_code=400, detail="El archivo está vacío")
     if len(contenido) > _MAX_BYTES:
         raise HTTPException(status_code=413, detail="El PDF supera el límite de 10MB")
-
-    # Extracción de texto
+        
+    # 1. Extracción de texto primero para que la variable 'texto' exista
     try:
         texto = pdf_service.extraer_texto_de_pdf(contenido)
-        print("DEBUG: Texto extraído exitosamente")
+        print(f"DEBUG: Texto extraído exitosamente. Total caracteres: {len(texto)}")
     except Exception as exc:
         raise HTTPException(status_code=422, detail=f"No se pudo leer el PDF: {exc}")
+
+    # 2. Ahora sí, validamos el volumen de texto de forma segura
+    if len(texto) > _MAX_CARACTERES_CV:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"El documento contiene un volumen de texto inusual ({len(texto)} caracteres). "
+                f"Por motivos de seguridad, el límite máximo permitido es de {_MAX_CARACTERES_CV} caracteres."
+            )
+        )
 
     # Limpiar el nombre del archivo (Supabase rechaza espacios y tildes en las keys)
     nombre_original = archivo.filename or "cv.pdf"
