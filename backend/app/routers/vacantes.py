@@ -1,17 +1,17 @@
 """Endpoints de vacantes: POST /vacantes, GET /vacantes, GET /vacantes/{id}."""
 from __future__ import annotations
 
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Body, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
 from app.deps import get_current_user
 from app.models import Curriculum, Usuario, Vacante, VacanteRequerimiento
-from app.schemas import CandidatoOut, RequerimientoOut, VacanteCreate, VacanteOut
+from app.schemas import CandidatoOut, RequerimientoOut, VacanteCreate, VacanteOut, PaginatedVacantes
 from app.services.candidatos_service import listar_candidatos_de_vacante
 from app.services.skills_service import obtener_o_crear_habilidad
 
@@ -78,13 +78,38 @@ def crear_vacante(
     return _a_salida(vacante, total_candidatos=0)
 
 
-@router.get("", response_model=List[VacanteOut])
-def listar_vacantes(
+@router.patch("/{id_vacante}", response_model=VacanteOut)
+def actualizar_vacante(
+    id_vacante: UUID,
+    estado_activo: bool = Body(..., embed=True),
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_current_user),
-) -> List[VacanteOut]:
+) -> VacanteOut:
+    """Actualiza el estado de una vacante (activa/cerrada). Solo el dueño puede modificarla."""
+    vacante = db.scalar(
+        select(Vacante).where(Vacante.id_vacante == id_vacante)
+    )
+    if vacante is None:
+        raise HTTPException(status_code=404, detail="Vacante no encontrada")
+    if vacante.id_usuario != usuario.id_usuario:
+        raise HTTPException(status_code=403, detail="No tienes permiso para modificar esta vacante")
+        
+    vacante.estado_activo = estado_activo
+    db.commit()
+    db.refresh(vacante)
+    return _a_salida(vacante, _contar_candidatos(db, id_vacante))
+
+
+@router.get("", response_model=PaginatedVacantes)
+def listar_vacantes(
+    q: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+) -> PaginatedVacantes:
     """Lista las vacantes del usuario autenticado, más recientes primero."""
-    vacantes = db.scalars(
+    query = (
         select(Vacante)
         .options(
             selectinload(Vacante.requerimientos).selectinload(
@@ -92,9 +117,21 @@ def listar_vacantes(
             )
         )
         .where(Vacante.id_usuario == usuario.id_usuario)
-        .order_by(Vacante.fecha_creacion.desc())
-    ).all()
-    return [_a_salida(v, _contar_candidatos(db, v.id_vacante)) for v in vacantes]
+    )
+    if q:
+        query = query.where(Vacante.titulo_puesto.ilike(f"%{q}%"))
+        
+    total = db.scalar(select(func.count()).select_from(query.subquery())) or 0
+    
+    query = query.order_by(Vacante.fecha_creacion.desc()).offset((page - 1) * page_size).limit(page_size)
+    vacantes = db.scalars(query).all()
+    
+    return PaginatedVacantes(
+        total=total,
+        page=page,
+        page_size=page_size,
+        items=[_a_salida(v, _contar_candidatos(db, v.id_vacante)) for v in vacantes]
+    )
 
 
 @router.get("/{id_vacante}", response_model=VacanteOut)
@@ -120,8 +157,9 @@ def obtener_vacante(
 @router.get("/{id_vacante}/candidatos", response_model=List[CandidatoOut])
 def candidatos_de_vacante(
     id_vacante: UUID,
+    q: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_current_user),
 ) -> List[CandidatoOut]:
     """Ranking de candidatos evaluados de la vacante, ordenados por % desc."""
-    return listar_candidatos_de_vacante(db, id_vacante)
+    return listar_candidatos_de_vacante(db, id_vacante, q)

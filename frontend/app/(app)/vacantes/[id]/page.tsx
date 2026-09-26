@@ -3,12 +3,13 @@
 import { use, useEffect, useState } from "react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, Upload, Trophy, Briefcase } from "lucide-react"
+import { ArrowLeft, Upload, Trophy, Briefcase, Lock, LockOpen, Loader2 } from "lucide-react"
 
 import { PageHeader } from "@/components/haire/page-header"
 import { CvUploader } from "@/components/haire/cv-uploader"
 import { RankingView } from "@/components/haire/ranking-view"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Card,
@@ -32,6 +33,7 @@ export default function VacanteDetallePage({
   const [tab, setTab] = useState<Tab>("ranking")
   const [cargando, setCargando] = useState(true)
   const [noExiste, setNoExiste] = useState(false)
+  const [toggling, setToggling] = useState(false)
 
   useEffect(() => {
     api
@@ -46,6 +48,19 @@ export default function VacanteDetallePage({
   if (noExiste) notFound()
   if (!vacante) return null
 
+  const toggleEstado = async () => {
+    setToggling(true)
+    const isActive = vacante.estado === 'activa'
+    try {
+      const updated = await api.patchVacante(vacante.id, !isActive)
+      setVacante(updated)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setToggling(false)
+    }
+  }
+
   return (
     <div className="mx-auto max-w-5xl">
       <Link
@@ -57,14 +72,32 @@ export default function VacanteDetallePage({
       </Link>
 
       <PageHeader title={vacante.titulo}>
-        <Badge
-          variant={vacante.estado === "activa" ? "default" : "secondary"}
-          className={
-            vacante.estado === "activa" ? "bg-success/15 text-success" : ""
-          }
-        >
-          {vacante.estado === "activa" ? "Activa" : "Cerrada"}
-        </Badge>
+        <div className="flex items-center gap-3">
+          <Badge
+            variant={vacante.estado === "activa" ? "default" : "secondary"}
+            className={
+              vacante.estado === "activa" ? "bg-success/15 text-success" : ""
+            }
+          >
+            {vacante.estado === "activa" ? "Activa" : "Cerrada"}
+          </Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleEstado}
+            disabled={toggling}
+            className="flex items-center gap-1.5"
+          >
+            {toggling ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : vacante.estado === "activa" ? (
+              <Lock className="size-4" />
+            ) : (
+              <LockOpen className="size-4" />
+            )}
+            {vacante.estado === "activa" ? "Cerrar vacante" : "Reabrir vacante"}
+          </Button>
+        </div>
       </PageHeader>
 
       {/* Info de la vacante */}

@@ -14,6 +14,14 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class RegisterRequest(BaseModel):
+    nombres: str
+    apellidos: str
+    correo: EmailStr
+    password: str = Field(..., min_length=6)
+    rol: Optional[str] = None
+
+
 class UsuarioOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -61,6 +69,13 @@ class VacanteOut(BaseModel):
     fecha_creacion: Optional[datetime] = None
     requerimientos: List[RequerimientoOut] = Field(default_factory=list)
     total_candidatos: int = 0
+
+
+class PaginatedVacantes(BaseModel):
+    total: int
+    page: int
+    page_size: int
+    items: List[VacanteOut]
 
 
 # ------------------------------ CV ------------------------------

@@ -9,14 +9,16 @@ import { Logo } from "@/components/haire/logo"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { CREDENCIALES_DEMO } from "@/lib/mock-data"
 import { api, ApiError } from "@/lib/api"
 import { guardarSesion } from "@/lib/auth"
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const router = useRouter()
+  const [nombres, setNombres] = useState("")
+  const [apellidos, setApellidos] = useState("")
   const [correo, setCorreo] = useState("")
   const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
   const [error, setError] = useState(false)
   const [mensajeError, setMensajeError] = useState("")
   const [cargando, setCargando] = useState(false)
@@ -24,10 +26,28 @@ export default function LoginPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError(false)
+
+    if (password.length < 6) {
+      setError(true)
+      setMensajeError("La contraseña debe tener al menos 6 caracteres.")
+      return
+    }
+
+    if (password !== confirmPassword) {
+      setError(true)
+      setMensajeError("Las contraseñas no coinciden.")
+      return
+    }
+
     setCargando(true)
 
     try {
-      const { token, usuario } = await api.login(correo.trim(), password)
+      const { token, usuario } = await api.register({
+        nombres: nombres.trim(),
+        apellidos: apellidos.trim(),
+        correo: correo.trim(),
+        password,
+      })
       guardarSesion(token, usuario)
       router.push("/dashboard")
     } catch (err) {
@@ -35,7 +55,7 @@ export default function LoginPage() {
       setMensajeError(
         err instanceof ApiError && err.status === 0
           ? "No se pudo conectar con el servidor."
-          : "Credenciales incorrectas. Revisa tu correo y contraseña.",
+          : (err instanceof ApiError ? err.message : "Error al registrarse. Intenta de nuevo.")
       )
       setCargando(false)
     }
@@ -51,12 +71,10 @@ export default function LoginPage() {
             <Sparkles className="size-6" aria-hidden="true" />
           </div>
           <h1 className="text-balance text-4xl font-semibold leading-tight">
-            El candidato adecuado, sin leer 30 CVs a mano.
+            Descubre al candidato perfecto para tu equipo.
           </h1>
           <p className="max-w-md text-pretty text-sidebar-foreground/70">
-            Haire analiza cada currículum con IA, calcula su compatibilidad con
-            la vacante y te muestra un ranking con la recomendación del mejor
-            postulante.
+            Únete a Haire y transforma tu proceso de reclutamiento con el poder de la IA. Analiza CVs automáticamente y enfócate en las entrevistas que importan.
           </p>
         </div>
         <p className="text-sm text-sidebar-foreground/50">
@@ -73,14 +91,14 @@ export default function LoginPage() {
 
           <div className="mb-8">
             <h2 className="text-2xl font-semibold text-foreground">
-              Iniciar sesión
+              Crear una cuenta
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Accede a tu panel de reclutamiento.
+              Comienza a gestionar tus procesos de selección.
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             {error && (
               <div
                 role="alert"
@@ -90,6 +108,31 @@ export default function LoginPage() {
                 <span>{mensajeError}</span>
               </div>
             )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="nombres">Nombres</Label>
+                <Input
+                  id="nombres"
+                  placeholder="Juan"
+                  value={nombres}
+                  onChange={(e) => setNombres(e.target.value)}
+                  aria-invalid={error}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="apellidos">Apellidos</Label>
+                <Input
+                  id="apellidos"
+                  placeholder="Pérez"
+                  value={apellidos}
+                  onChange={(e) => setApellidos(e.target.value)}
+                  aria-invalid={error}
+                  required
+                />
+              </div>
+            </div>
 
             <div className="space-y-2">
               <Label htmlFor="correo">Correo electrónico</Label>
@@ -106,22 +149,28 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Contraseña</Label>
-                <button
-                  type="button"
-                  className="text-xs font-medium text-brand hover:underline"
-                >
-                  ¿Olvidaste tu contraseña?
-                </button>
-              </div>
+              <Label htmlFor="password">Contraseña</Label>
               <Input
                 id="password"
                 type="password"
-                autoComplete="current-password"
+                autoComplete="new-password"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                aria-invalid={error}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirmar contraseña</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                autoComplete="new-password"
+                placeholder="••••••••"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
                 aria-invalid={error}
                 required
               />
@@ -131,22 +180,17 @@ export default function LoginPage() {
               type="submit"
               size="lg"
               disabled={cargando}
-              className="w-full bg-brand text-brand-foreground hover:bg-brand/90"
+              className="w-full bg-brand text-brand-foreground hover:bg-brand/90 mt-2"
             >
               {cargando && <Loader2 className="size-4 animate-spin" />}
-              {cargando ? "Iniciando sesión..." : "Iniciar sesión"}
+              {cargando ? "Creando cuenta..." : "Regístrate"}
             </Button>
           </form>
 
-          <div className="mt-6 rounded-lg border border-border bg-muted/50 px-3 py-2.5 text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">Demo:</span>{" "}
-            {CREDENCIALES_DEMO.correo} · {CREDENCIALES_DEMO.password}
-          </div>
-
           <div className="mt-8 text-center text-sm text-muted-foreground">
-            ¿No tienes cuenta?{" "}
-            <Link href="/register" className="font-medium text-brand hover:underline">
-              Regístrate
+            ¿Ya tienes cuenta?{" "}
+            <Link href="/" className="font-medium text-brand hover:underline">
+              Inicia sesión
             </Link>
           </div>
         </div>

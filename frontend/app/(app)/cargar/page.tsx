@@ -22,8 +22,8 @@ export default function CargarPage() {
   useEffect(() => {
     api
       .listarVacantes()
-      .then((vs) => {
-        const activasV = vs.filter((v) => v.estado === "activa")
+      .then(({ items }) => {
+        const activasV = items.filter((v) => v.estado === "activa")
         setActivas(activasV)
         setSeleccion((prev) => prev || activasV[0]?.id || "")
       })

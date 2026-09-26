@@ -38,3 +38,13 @@ def verificar_password_demo(password: str) -> bool:
     Interino: la tabla `usuarios` no tiene columna de password (ver README).
     """
     return secrets.compare_digest(password, settings.auth_demo_password)
+
+def hashear_password(password: str) -> str:
+    """Genera un hash bcrypt de la contraseña."""
+    import bcrypt
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+
+def verificar_password(password: str, password_hash: str) -> bool:
+    """Verifica una contraseña contra su hash bcrypt."""
+    import bcrypt
+    return bcrypt.checkpw(password.encode(), password_hash.encode())

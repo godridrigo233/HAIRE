@@ -17,6 +17,7 @@ from fastapi import (
 )
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+import logging
 
 from app.database import get_db
 from app.deps import get_current_user
@@ -24,6 +25,7 @@ from app.models import (
     Curriculum,
     CurriculumHabilidad,
     Evaluacion,
+    Habilidad,
     Postulante,
     PromptLog,
     Usuario,
@@ -47,7 +49,8 @@ router = APIRouter(prefix="/cv", tags=["cv"])
 _MAX_BYTES = 10 * 1024 * 1024  # 10 MB (límite del bucket `cv`)
 _MAX_CARACTERES_CV = 40000     # ~10 a 15 páginas de texto puro como máximo
 
-@router.post("/upload", response_model=UploadResponse, status_code=status.HTTP_201_CREATED)
+logger = logging.getLogger("haire.cv")
+
 @router.post("/upload", response_model=UploadResponse, status_code=status.HTTP_201_CREATED)
 def upload_cv(
     id_vacante: UUID = Form(...),
@@ -60,7 +63,7 @@ def upload_cv(
     usuario: Usuario = Depends(get_current_user),
 ) -> UploadResponse:
     """Recibe un PDF, extrae su texto, lo sube a Storage y crea el curriculum."""
-    print("DEBUG: Iniciando upload_cv")
+    logger.debug("Iniciando upload_cv")
 
     if archivo.content_type != "application/pdf":
         raise HTTPException(status_code=400, detail="El archivo debe ser un PDF")
@@ -70,7 +73,7 @@ def upload_cv(
         raise HTTPException(status_code=404, detail="Vacante no encontrada")
 
     contenido = archivo.file.read()
-    print(f"DEBUG: Archivo leído, tamaño: {len(contenido)} bytes")
+    logger.debug(f"Archivo leído, tamaño: {len(contenido)} bytes")
     if not contenido:
         raise HTTPException(status_code=400, detail="El archivo está vacío")
     if len(contenido) > _MAX_BYTES:
@@ -79,7 +82,7 @@ def upload_cv(
     # 1. Extracción de texto primero para que la variable 'texto' exista
     try:
         texto = pdf_service.extraer_texto_de_pdf(contenido)
-        print(f"DEBUG: Texto extraído exitosamente. Total caracteres: {len(texto)}")
+        logger.debug(f"Texto extraído exitosamente. Total caracteres: {len(texto)}")
     except Exception as exc:
         raise HTTPException(status_code=422, detail=f"No se pudo leer el PDF: {exc}")
 
@@ -191,9 +194,9 @@ def analizar_cv(
         # --- ELIMINACIÓN AUTOMÁTICA ---
         try:
             storage_service.eliminar_cv(curriculum.archivo_pdf_url)
-            print(f"DEBUG: Archivo basura eliminado: {curriculum.archivo_pdf_url}")
+            logger.debug(f"Archivo basura eliminado: {curriculum.archivo_pdf_url}")
         except Exception as e:
-            print(f"DEBUG: Error al intentar borrar archivo basura: {e}")
+            logger.debug(f"Error al intentar borrar archivo basura: {e}")
         # -------------------------------
         raise HTTPException(
             status_code=400,

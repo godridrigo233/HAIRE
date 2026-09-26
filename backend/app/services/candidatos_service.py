@@ -78,15 +78,27 @@ def _armar_candidato(
     )
 
 
-def listar_candidatos_de_vacante(db: Session, id_vacante: uuid.UUID) -> List[CandidatoOut]:
+from sqlalchemy import or_
+
+def listar_candidatos_de_vacante(db: Session, id_vacante: uuid.UUID, q: Optional[str] = None) -> List[CandidatoOut]:
     """Candidatos evaluados de una vacante, ordenados por % descendente."""
-    filas = db.execute(
+    query = (
         select(Evaluacion, Curriculum, Postulante)
         .join(Curriculum, Curriculum.id_curriculum == Evaluacion.id_curriculum)
         .join(Postulante, Postulante.id_postulante == Curriculum.id_postulante)
         .where(Evaluacion.id_vacante == id_vacante)
-        .order_by(Evaluacion.porcentaje_compatibilidad.desc())
-    ).all()
+    )
+    
+    if q:
+        query = query.where(
+            or_(
+                Postulante.nombres.ilike(f"%{q}%"),
+                Postulante.apellidos.ilike(f"%{q}%"),
+                func.concat(Postulante.nombres, ' ', Postulante.apellidos).ilike(f"%{q}%")
+            )
+        )
+        
+    filas = db.execute(query.order_by(Evaluacion.porcentaje_compatibilidad.desc())).all()
     return [_armar_candidato(db, ev, cur, post) for ev, cur, post in filas]
 
 

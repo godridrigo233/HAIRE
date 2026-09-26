@@ -38,11 +38,24 @@ def subir_cv(pdf_bytes: bytes, nombre_original: str) -> str:
 
     firmada = bucket.create_signed_url(ruta, _SIGNED_URL_TTL_SEG)
     return firmada.get("signedURL") or firmada.get("signedUrl") or ruta
-def eliminar_cv(self, url_publica: str):
-    """Extrae el nombre del archivo de la URL y lo borra del bucket 'cv'."""
-    # La URL suele ser: .../storage/v1/object/sign/cv/nombre-archivo.pdf
-    # Necesitamos obtener 'cv/nombre-archivo.pdf'
-    path_part = url_publica.split("/cv/")[-1]
-    file_path = f"cv/{path_part}"
-        # Usamos la llave de servicio (service_role) que tiene permisos de borrado
-    self.client.storage.from_("cv").remove([file_path])
+def eliminar_cv(url_o_ruta: str) -> None:
+    """Extrae el path del objeto de la URL firmada y lo borra del bucket 'cv'.
+
+    La URL firmada tiene la forma:
+      https://<project>.supabase.co/storage/v1/object/sign/cv/<uuid>-<filename.pdf>?token=...
+    Se extrae la parte después de '/cv/' y antes de '?' para obtener la ruta del objeto.
+    """
+    # Quitar query string si existe
+    sin_query = url_o_ruta.split("?")[0]
+    # Extraer el path dentro del bucket (después del nombre del bucket)
+    separador = f"/{settings.supabase_bucket}/"
+    if separador in sin_query:
+        ruta_objeto = sin_query.split(separador, 1)[-1]
+    else:
+        # Fallback: asumir que la cadena ya ES la ruta del objeto
+        ruta_objeto = sin_query
+    try:
+        _client().storage.from_(settings.supabase_bucket).remove([ruta_objeto])
+    except Exception as exc:
+        import logging
+        logging.getLogger("haire.storage").warning("No se pudo eliminar %s: %s", ruta_objeto, exc)

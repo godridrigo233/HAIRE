@@ -1,12 +1,13 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import Link from "next/link"
-import { Sparkles, Trophy } from "lucide-react"
+import { Sparkles, Trophy, Trash2, Search } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
-import { buttonVariants } from "@/components/ui/button"
+import { buttonVariants, Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Input } from "@/components/ui/input"
 import { ScoreBadge } from "@/components/haire/score-badge"
 import {
   Table,
@@ -24,26 +25,48 @@ import { api } from "@/lib/api"
 export function RankingView({
   vacanteId,
   cargando: cargandoExterno = false,
+  onRefresh,
 }: {
   vacanteId: string
   cargando?: boolean
+  onRefresh?: () => void
 }) {
   const [candidatos, setCandidatos] = useState<Candidato[]>([])
   const [cargandoDatos, setCargandoDatos] = useState(true)
+  const [q, setQ] = useState("")
 
-  useEffect(() => {
+  const fetchCandidatos = useCallback((searchQ: string) => {
     setCargandoDatos(true)
     api
-      .getCandidatosDeVacante(vacanteId)
+      .getCandidatosDeVacante(vacanteId, searchQ)
       .then(setCandidatos)
       .catch(() => setCandidatos([]))
       .finally(() => setCargandoDatos(false))
   }, [vacanteId])
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchCandidatos(q)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [q, fetchCandidatos])
+
+  const handleDelete = async (e: React.MouseEvent, candidatoId: string) => {
+    e.stopPropagation()
+    if (!window.confirm("¿Eliminar este candidato?")) return
+    try {
+      await api.eliminarCandidato(candidatoId)
+      setCandidatos(prev => prev.filter(c => c.id !== candidatoId))
+      onRefresh?.()
+    } catch (err) {
+      console.error("Error eliminando candidato", err)
+    }
+  }
+
   // La API ya devuelve ordenado por porcentaje desc.
   const recomendado = candidatos.find((c) => c.esRecomendado) ?? candidatos[0]
 
-  if (cargandoExterno || cargandoDatos) {
+  if (cargandoExterno || (cargandoDatos && !candidatos.length)) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-40 w-full rounded-xl" />
@@ -56,23 +79,10 @@ export function RankingView({
     )
   }
 
-  if (candidatos.length === 0) {
-    return (
-      <Card>
-        <CardContent className="py-12 text-center">
-          <p className="text-sm text-muted-foreground">
-            Aún no hay candidatos analizados para esta vacante. Sube algunos CVs
-            para empezar.
-          </p>
-        </CardContent>
-      </Card>
-    )
-  }
-
   return (
     <div className="space-y-6">
       {/* Recomendación de la IA */}
-      {recomendado && (
+      {!q && recomendado && (
         <div className="overflow-hidden rounded-xl bg-sidebar p-6 text-sidebar-foreground">
           <div className="flex items-center gap-2 text-brand">
             <Sparkles className="size-4" />
@@ -104,77 +114,107 @@ export function RankingView({
 
       {/* Tabla de candidatos */}
       <Card>
-        <CardContent className="pt-2">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Candidato</TableHead>
-                  <TableHead>Compatibilidad</TableHead>
-                  <TableHead>Habilidades detectadas</TableHead>
-                  <TableHead className="w-0" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {candidatos.map((c, i) => {
-                  const habilidades = [
-                    ...c.requeridas.filter((r) => r.cumple).map((r) => r.nombre),
-                    ...c.adicionales,
-                  ]
-                  const visibles = habilidades.slice(0, 4)
-                  const extra = habilidades.length - visibles.length
-                  return (
-                    <TableRow key={c.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground tabular-nums">
-                            {i + 1}
-                          </span>
-                          <div>
-                            <p className="font-medium text-foreground">
-                              {c.nombre}
-                            </p>
-                            {c.esRecomendado && (
-                              <span className="text-xs font-medium text-brand">
-                                Recomendado
-                              </span>
+        <CardContent className="pt-6">
+          <div className="mb-4 relative max-w-md">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Buscar candidato..."
+              className="pl-8"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+          </div>
+
+          {candidatos.length === 0 ? (
+            <div className="py-12 text-center">
+              <p className="text-sm text-muted-foreground">
+                {q ? "No se encontraron candidatos." : "Aún no hay candidatos analizados para esta vacante."}
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Candidato</TableHead>
+                    <TableHead>Compatibilidad</TableHead>
+                    <TableHead>Habilidades detectadas</TableHead>
+                    <TableHead className="w-0" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {candidatos.map((c, i) => {
+                    const habilidades = [
+                      ...c.requeridas.filter((r) => r.cumple).map((r) => r.nombre),
+                      ...c.adicionales,
+                    ]
+                    const visibles = habilidades.slice(0, 4)
+                    const extra = habilidades.length - visibles.length
+                    return (
+                      <TableRow key={c.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground tabular-nums">
+                              {i + 1}
+                            </span>
+                            <div>
+                              <p className="font-medium text-foreground">
+                                {c.nombre}
+                              </p>
+                              {c.esRecomendado && (
+                                <span className="text-xs font-medium text-brand">
+                                  Recomendado
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <ScoreBadge porcentaje={c.porcentaje} />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {visibles.map((h) => (
+                              <Badge key={h} variant="outline" className="font-normal">
+                                {h}
+                              </Badge>
+                            ))}
+                            {extra > 0 && (
+                              <Badge variant="secondary" className="font-normal">
+                                +{extra} más
+                              </Badge>
                             )}
                           </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <ScoreBadge porcentaje={c.porcentaje} />
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {visibles.map((h) => (
-                            <Badge key={h} variant="outline" className="font-normal">
-                              {h}
-                            </Badge>
-                          ))}
-                          {extra > 0 && (
-                            <Badge variant="secondary" className="font-normal">
-                              +{extra} más
-                            </Badge>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Link
-                          href={`/candidatos/${c.id}`}
-                          className={cn(
-                            buttonVariants({ variant: "outline", size: "sm" }),
-                          )}
-                        >
-                          Ver detalle
-                        </Link>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Link
+                              href={`/candidatos/${c.id}`}
+                              className={cn(
+                                buttonVariants({ variant: "outline", size: "sm" }),
+                              )}
+                            >
+                              Ver detalle
+                            </Link>
+                            <Button
+                              variant="destructive"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={(e) => handleDelete(e, c.id)}
+                              title="Eliminar candidato"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

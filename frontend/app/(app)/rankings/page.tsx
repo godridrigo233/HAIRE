@@ -16,8 +16,8 @@ export default function RankingsPage() {
   useEffect(() => {
     api
       .listarVacantes()
-      .then((vs) => {
-        const conCandidatos = vs.filter((v) => v.candidatos > 0)
+      .then((data) => {
+        const conCandidatos = data.items.filter((v) => v.candidatos > 0)
         setVacantesActivas(conCandidatos)
         setSeleccion((prev) => prev || conCandidatos[0]?.id || "")
       })

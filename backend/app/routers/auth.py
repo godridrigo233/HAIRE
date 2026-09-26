@@ -7,19 +7,15 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Usuario
-from app.schemas import LoginRequest, LoginResponse, UsuarioOut
-from app.security import crear_access_token, verificar_password_demo
+from app.schemas import LoginRequest, LoginResponse, RegisterRequest, UsuarioOut
+from app.security import crear_access_token, hashear_password, verificar_password, verificar_password_demo
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/login", response_model=LoginResponse)
 def login(datos: LoginRequest, db: Session = Depends(get_db)) -> LoginResponse:
-    """Valida correo (existe en `usuarios`) + password de demo y emite un JWT real.
-
-    Nota: la tabla `usuarios` no tiene columna de password (ver README). El login es
-    interino: verifica que el correo exista y la password coincida con AUTH_DEMO_PASSWORD.
-    """
+    """Valida correo (existe en `usuarios`) y verifica la password."""
     usuario = db.scalar(
         select(Usuario).where(
             func.lower(Usuario.correo) == datos.correo.strip().lower()
@@ -29,7 +25,16 @@ def login(datos: LoginRequest, db: Session = Depends(get_db)) -> LoginResponse:
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Correo o contraseña incorrectos",
     )
-    if usuario is None or not verificar_password_demo(datos.password):
+    if usuario is None:
+        raise credenciales_invalidas
+        
+    password_valida = False
+    if usuario.password_hash:
+        password_valida = verificar_password(datos.password, usuario.password_hash)
+    else:
+        password_valida = verificar_password_demo(datos.password)
+        
+    if not password_valida:
         raise credenciales_invalidas
 
     token = crear_access_token(
@@ -39,4 +44,39 @@ def login(datos: LoginRequest, db: Session = Depends(get_db)) -> LoginResponse:
     return LoginResponse(
         access_token=token,
         usuario=UsuarioOut.model_validate(usuario),
+    )
+
+
+@router.post("/register", response_model=LoginResponse, status_code=201)
+def register(datos: RegisterRequest, db: Session = Depends(get_db)) -> LoginResponse:
+    """Crea un nuevo usuario con password hasheado y devuelve un JWT."""
+    existente = db.scalar(
+        select(Usuario).where(
+            func.lower(Usuario.correo) == datos.correo.strip().lower()
+        )
+    )
+    if existente:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="El correo ya está registrado",
+        )
+        
+    nuevo_usuario = Usuario(
+        nombres=datos.nombres,
+        apellidos=datos.apellidos,
+        correo=datos.correo.strip().lower(),
+        password_hash=hashear_password(datos.password),
+        rol=datos.rol,
+    )
+    db.add(nuevo_usuario)
+    db.commit()
+    db.refresh(nuevo_usuario)
+    
+    token = crear_access_token(
+        subject=nuevo_usuario.id_usuario,
+        extra={"correo": nuevo_usuario.correo, "rol": nuevo_usuario.rol},
+    )
+    return LoginResponse(
+        access_token=token,
+        usuario=UsuarioOut.model_validate(nuevo_usuario),
     )

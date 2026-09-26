@@ -61,6 +61,14 @@ export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [usuario, setUsuario] = useState<UsuarioSesion | null>(null)
+  const [searchTerm, setSearchTerm] = useState("")
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (searchTerm.trim()) {
+      router.push(`/vacantes?q=${encodeURIComponent(searchTerm.trim())}`)
+    }
+  }
 
   // Protección de rutas: sin token, de vuelta al login.
   useEffect(() => {
@@ -126,15 +134,17 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="md:hidden">
             <Logo variant="dark" />
           </div>
-          <div className="relative hidden max-w-md flex-1 items-center sm:flex">
+          <form className="relative hidden max-w-md flex-1 items-center sm:flex" onSubmit={handleSearch}>
             <Search className="pointer-events-none absolute left-3 size-4 text-muted-foreground" />
             <Input
               type="search"
-              placeholder="Buscar vacantes o candidatos..."
+              placeholder="Buscar vacantes..."
               className="pl-9"
               aria-label="Buscar"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
-          </div>
+          </form>
           <div className="ml-auto flex items-center gap-3">
             <DropdownMenu>
               <DropdownMenuTrigger

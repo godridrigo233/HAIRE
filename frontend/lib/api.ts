@@ -40,6 +40,14 @@ async function request<T>(
   }
 
   if (!resp.ok) {
+    if (resp.status === 401) {
+      // Token expired - clear session
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('haire_token')
+        localStorage.removeItem('haire_user')
+        window.location.href = '/'
+      }
+    }
     let detalle = `Error ${resp.status}`
     try {
       const j = await resp.json()
@@ -122,9 +130,14 @@ export const api = {
     return { token: data.access_token, usuario: data.usuario }
   },
 
-  async listarVacantes(): Promise<Vacante[]> {
-    const data = await request<VacanteApi[]>("/vacantes")
-    return data.map(mapVacante)
+  async listarVacantes(params?: { q?: string; page?: number; page_size?: number }): Promise<{ total: number; items: Vacante[] }> {
+    const qs = new URLSearchParams()
+    if (params?.q) qs.set('q', params.q)
+    if (params?.page) qs.set('page', String(params.page))
+    if (params?.page_size) qs.set('page_size', String(params.page_size))
+    const suffix = qs.toString() ? `?${qs.toString()}` : ''
+    const data = await request<{ total: number; page: number; page_size: number; items: VacanteApi[] }>(`/vacantes${suffix}`)
+    return { total: data.total, items: data.items.map(mapVacante) }
   },
 
   async getVacante(id: string): Promise<Vacante> {
@@ -145,8 +158,9 @@ export const api = {
     )
   },
 
-  async getCandidatosDeVacante(idVacante: string): Promise<Candidato[]> {
-    const data = await request<CandidatoApi[]>(`/vacantes/${idVacante}/candidatos`)
+  async getCandidatosDeVacante(idVacante: string, q?: string): Promise<Candidato[]> {
+    const suffix = q ? `?q=${encodeURIComponent(q)}` : ''
+    const data = await request<CandidatoApi[]>(`/vacantes/${idVacante}/candidatos${suffix}`)
     return data.map(mapCandidato)
   },
 
@@ -169,5 +183,25 @@ export const api = {
   // Analiza un curriculum ya subido (llamada a Groq en el backend).
   async analizarCv(idCurriculum: string): Promise<void> {
     await request(`/cv/${idCurriculum}/analizar`, { method: "POST" })
+  },
+
+  async patchVacante(id: string, estado_activo: boolean): Promise<Vacante> {
+    return mapVacante(await request<VacanteApi>(`/vacantes/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ estado_activo }),
+    }))
+  },
+
+  async eliminarCandidato(idEvaluacion: string): Promise<void> {
+    await request(`/candidatos/${idEvaluacion}`, { method: 'DELETE' })
+  },
+
+  async register(datos: { nombres: string; apellidos: string; correo: string; password: string }): Promise<{ token: string; usuario: UsuarioSesion }> {
+    const data = await request<{ access_token: string; usuario: UsuarioSesion }>(
+      '/auth/register',
+      { method: 'POST', body: JSON.stringify(datos) },
+      false,
+    )
+    return { token: data.access_token, usuario: data.usuario }
   },
 }

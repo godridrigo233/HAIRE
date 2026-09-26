@@ -39,7 +39,7 @@ export default function DashboardPage() {
     setNombre(getUsuario()?.nombres ?? "")
     api
       .listarVacantes()
-      .then(setVacantes)
+      .then((data) => setVacantes(data.items))
       .catch(() => setVacantes([]))
       .finally(() => setCargando(false))
   }, [])

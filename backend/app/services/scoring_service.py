@@ -5,6 +5,8 @@ contra los requerimientos de la vacante (`vacante_requerimientos`).
 """
 from __future__ import annotations
 
+import uuid
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -17,8 +19,9 @@ from app.schemas import ScoringResponse
 
 
 def calcular_scoring_simple(
-    db: Session, id_curriculum: int, id_vacante: int
+    db: Session, id_curriculum: uuid.UUID, id_vacante: uuid.UUID
 ) -> ScoringResponse:
+
     # Habilidades detectadas en el CV (nombres en minúscula para comparar)
     detectadas = set(
         n.lower()
