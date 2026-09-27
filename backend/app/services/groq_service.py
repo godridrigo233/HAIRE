@@ -65,6 +65,16 @@ def _construir_prompt_usuario(
     )
 
 
+_MODEL_ALIASES = {
+    "llama-3.1-70b-versatile": "llama-3.3-70b-versatile",
+    "llama-3.1-70b": "llama-3.3-70b-versatile",
+    "llama3-70b-8192": "llama-3.3-70b-versatile",
+    "llama3-8b-8192": "llama-3.1-8b-instant",
+    "llama-3.1-8b": "llama-3.1-8b-instant",
+    "mixtral-8x7b-32768": "llama-3.3-70b-versatile",
+}
+
+
 def analizar_cv(
     texto_cv: str,
     titulo: str,
@@ -73,70 +83,90 @@ def analizar_cv(
     requeridas_opcionales: List[str],
 ) -> ResultadoAnalisis:
     """Llama a Groq, valida el JSON con Pydantic y devuelve el resultado + trazas."""
+    if not settings.groq_api_key or "REEMPLAZA" in settings.groq_api_key:
+        raise ValueError("La variable GROQ_API_KEY no está configurada. Debes configurar una API key válida de Groq.")
+
     prompt_usuario = _construir_prompt_usuario(
         texto_cv, titulo, experiencia_minima,
         requeridas_obligatorias, requeridas_opcionales,
     )
-    payload = {
-        "model": settings.groq_model,
-        "messages": [
-            {"role": "system", "content": _SYSTEM_PROMPT},
-            {"role": "user", "content": prompt_usuario},
-        ],
-        "response_format": {"type": "json_object"},
-        "temperature": 0.2,
-    }
 
-    if not settings.groq_api_key or "REEMPLAZA" in settings.groq_api_key:
-        raise ValueError("La variable GROQ_API_KEY no está configurada. Debes configurar una API key válida de Groq.")
+    # Normalizar modelo configurado
+    modelo_config = (settings.groq_model or "").strip().strip('"\'')
+    modelo_principal = _MODEL_ALIASES.get(modelo_config, modelo_config) or "llama-3.3-70b-versatile"
 
-    inicio = time.perf_counter()
-    try:
-        with httpx.Client(timeout=_TIMEOUT_SEG) as client:
-            resp = client.post(
-                _GROQ_URL,
-                headers={"Authorization": f"Bearer {settings.groq_api_key}"},
-                json=payload,
-            )
-    except httpx.RequestError as exc:
-        raise RuntimeError(f"Error de conexión con la API de Groq: {exc}") from exc
+    # Modelos candidatos a probar en caso de 404 (modelo no disponible o deprecado)
+    modelos_a_probar = [modelo_principal]
+    for backup in ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]:
+        if backup not in modelos_a_probar:
+            modelos_a_probar.append(backup)
 
-    tiempo_ms = int((time.perf_counter() - inicio) * 1000)
+    ultimo_error = None
+    inicio_total = time.perf_counter()
 
-    if resp.status_code != 200:
-        detalle = resp.text
+    for modelo_actual in modelos_a_probar:
+        payload = {
+            "model": modelo_actual,
+            "messages": [
+                {"role": "system", "content": _SYSTEM_PROMPT},
+                {"role": "user", "content": prompt_usuario},
+            ],
+            "response_format": {"type": "json_object"},
+            "temperature": 0.2,
+        }
+
         try:
-            error_data = resp.json()
-            if "error" in error_data and "message" in error_data["error"]:
-                detalle = error_data["error"]["message"]
-        except Exception:
-            pass
-        raise RuntimeError(f"Groq API error ({resp.status_code}): {detalle}")
+            with httpx.Client(timeout=_TIMEOUT_SEG) as client:
+                resp = client.post(
+                    _GROQ_URL,
+                    headers={"Authorization": f"Bearer {settings.groq_api_key.strip().strip('\"\'')}"},
+                    json=payload,
+                )
+        except httpx.RequestError as exc:
+            raise RuntimeError(f"Error de conexión con la API de Groq: {exc}") from exc
 
-    data = resp.json()
-    contenido = data["choices"][0]["message"]["content"].strip()
+        if resp.status_code == 404:
+            # Modelo no existe en Groq, intentar con el siguiente modelo de fallback
+            ultimo_error = f"Modelo '{modelo_actual}' no encontrado en Groq (404)"
+            continue
 
-    # Limpiar posibles bloques markdown ```json ... ```
-    if contenido.startswith("```"):
-        import re
-        contenido = re.sub(r"^```(?:json)?\s*", "", contenido)
-        contenido = re.sub(r"\s*```$", "", contenido)
+        if resp.status_code != 200:
+            detalle = resp.text
+            try:
+                error_data = resp.json()
+                if "error" in error_data and "message" in error_data["error"]:
+                    detalle = error_data["error"]["message"]
+            except Exception:
+                pass
+            raise RuntimeError(f"Groq API error ({resp.status_code}): {detalle}")
 
-    try:
-        analisis = AnalisisIA.model_validate_json(contenido)
-    except ValidationError as exc:
-        # Reintento de parseo: a veces el modelo envuelve el JSON en texto.
+        # Si llegó aquí, tuvimos respuesta 200
+        tiempo_ms = int((time.perf_counter() - inicio_total) * 1000)
+        data = resp.json()
+        contenido = data["choices"][0]["message"]["content"].strip()
+
+        # Limpiar posibles bloques markdown ```json ... ```
+        if contenido.startswith("```"):
+            import re
+            contenido = re.sub(r"^```(?:json)?\s*", "", contenido)
+            contenido = re.sub(r"\s*```$", "", contenido)
+
         try:
-            analisis = AnalisisIA.model_validate(json.loads(contenido))
-        except Exception:
-            raise ValueError(
-                f"Groq no devolvió un JSON con la forma esperada: {exc}"
-            ) from exc
+            analisis = AnalisisIA.model_validate_json(contenido)
+        except ValidationError as exc:
+            try:
+                analisis = AnalisisIA.model_validate(json.loads(contenido))
+            except Exception:
+                raise ValueError(
+                    f"Groq no devolvió un JSON con la forma esperada: {exc}"
+                ) from exc
 
-    return ResultadoAnalisis(
-        analisis=analisis,
-        prompt_enviado=prompt_usuario,
-        respuesta_cruda=contenido,
-        modelo_usado=settings.groq_model,
-        tiempo_respuesta_ms=tiempo_ms,
-    )
+        return ResultadoAnalisis(
+            analisis=analisis,
+            prompt_enviado=prompt_usuario,
+            respuesta_cruda=contenido,
+            modelo_usado=modelo_actual,
+            tiempo_respuesta_ms=tiempo_ms,
+        )
+
+    raise RuntimeError(f"No se pudo completar el análisis con los modelos de Groq probados: {ultimo_error}")
