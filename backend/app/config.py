@@ -14,28 +14,35 @@ class Settings(BaseSettings):
     )
 
     # Base de datos
-    database_url: str = Field(alias="DATABASE_URL")
+    database_url: str = Field(
+        default="",
+        alias="DATABASE_URL",
+    )
 
     # Supabase Storage
-    supabase_url: str = Field(alias="SUPABASE_URL")
-    supabase_service_key: str = Field(alias="SUPABASE_SERVICE_KEY")
+    supabase_url: str = Field(default="", alias="SUPABASE_URL")
+    supabase_service_key: str = Field(default="", alias="SUPABASE_SERVICE_KEY")
     supabase_bucket: str = Field(default="cv", alias="SUPABASE_BUCKET")
 
     # Groq
-    groq_api_key: str = Field(alias="GROQ_API_KEY")
+    groq_api_key: str = Field(default="", alias="GROQ_API_KEY")
     groq_model: str = Field(default="llama-3.3-70b-versatile", alias="GROQ_MODEL")
 
     # JWT
-    jwt_secret: str = Field(alias="JWT_SECRET")
+    jwt_secret: str = Field(
+        default="haire_jwt_secret_super_secure_key_2026_xyz",
+        alias="JWT_SECRET",
+    )
     jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
     jwt_expire_minutes: int = Field(default=480, alias="JWT_EXPIRE_MINUTES")
 
     # Auth interina
-    auth_demo_password: str = Field(alias="AUTH_DEMO_PASSWORD")
+    auth_demo_password: str = Field(default="haire2026", alias="AUTH_DEMO_PASSWORD")
 
     # CORS: string separado por comas (se parsea en `cors_origins`).
     cors_origins_raw: str = Field(
-        default="http://localhost:3000", alias="CORS_ORIGINS"
+        default="http://localhost:3000,https://haire-tau.vercel.app",
+        alias="CORS_ORIGINS",
     )
 
     @property

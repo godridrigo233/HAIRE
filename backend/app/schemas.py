@@ -5,19 +5,19 @@ from datetime import datetime
 from typing import Any, List, Optional, Union
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 # ----------------------------- Auth -----------------------------
 class LoginRequest(BaseModel):
-    correo: EmailStr
+    correo: str
     password: str
 
 
 class RegisterRequest(BaseModel):
     nombres: str
     apellidos: str
-    correo: EmailStr
+    correo: str
     password: str = Field(..., min_length=6)
     rol: Optional[str] = None
 

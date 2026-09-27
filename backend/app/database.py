@@ -15,15 +15,14 @@ from app.config import get_settings
 
 settings = get_settings()
 
-engine = create_engine(
-    settings.database_url,
-    pool_pre_ping=True,   # revalida conexiones caídas (Supabase cierra idle)
-    pool_size=5,
-    max_overflow=5,
-    # Sin esto, un bloqueo de red en el puerto de Postgres cuelga la request
-    # indefinidamente (ej. firewalls que solo dejan pasar 443/HTTPS).
-    connect_args={"connect_timeout": 5},
-)
+db_url = settings.database_url or "sqlite:///:memory:"
+is_sqlite = "sqlite" in db_url
+
+engine_kwargs = {"pool_pre_ping": True, "connect_args": {"connect_timeout": 5}}
+if not is_sqlite:
+    engine_kwargs.update({"pool_size": 5, "max_overflow": 5})
+
+engine = create_engine(db_url, **engine_kwargs)
 
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
