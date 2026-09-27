@@ -87,18 +87,40 @@ def analizar_cv(
         "temperature": 0.2,
     }
 
+    if not settings.groq_api_key or "REEMPLAZA" in settings.groq_api_key:
+        raise ValueError("La variable GROQ_API_KEY no está configurada. Debes configurar una API key válida de Groq.")
+
     inicio = time.perf_counter()
-    with httpx.Client(timeout=_TIMEOUT_SEG) as client:
-        resp = client.post(
-            _GROQ_URL,
-            headers={"Authorization": f"Bearer {settings.groq_api_key}"},
-            json=payload,
-        )
+    try:
+        with httpx.Client(timeout=_TIMEOUT_SEG) as client:
+            resp = client.post(
+                _GROQ_URL,
+                headers={"Authorization": f"Bearer {settings.groq_api_key}"},
+                json=payload,
+            )
+    except httpx.RequestError as exc:
+        raise RuntimeError(f"Error de conexión con la API de Groq: {exc}") from exc
+
     tiempo_ms = int((time.perf_counter() - inicio) * 1000)
-    resp.raise_for_status()
+
+    if resp.status_code != 200:
+        detalle = resp.text
+        try:
+            error_data = resp.json()
+            if "error" in error_data and "message" in error_data["error"]:
+                detalle = error_data["error"]["message"]
+        except Exception:
+            pass
+        raise RuntimeError(f"Groq API error ({resp.status_code}): {detalle}")
 
     data = resp.json()
-    contenido = data["choices"][0]["message"]["content"]
+    contenido = data["choices"][0]["message"]["content"].strip()
+
+    # Limpiar posibles bloques markdown ```json ... ```
+    if contenido.startswith("```"):
+        import re
+        contenido = re.sub(r"^```(?:json)?\s*", "", contenido)
+        contenido = re.sub(r"\s*```$", "", contenido)
 
     try:
         analisis = AnalisisIA.model_validate_json(contenido)

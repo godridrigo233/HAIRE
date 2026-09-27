@@ -136,8 +136,14 @@ export const api = {
     if (params?.page) qs.set('page', String(params.page))
     if (params?.page_size) qs.set('page_size', String(params.page_size))
     const suffix = qs.toString() ? `?${qs.toString()}` : ''
-    const data = await request<{ total: number; page: number; page_size: number; items: VacanteApi[] }>(`/vacantes${suffix}`)
-    return { total: data.total, items: data.items.map(mapVacante) }
+    const data = await request<any>(`/vacantes${suffix}`)
+    if (Array.isArray(data)) {
+      return { total: data.length, items: data.map(mapVacante) }
+    }
+    if (data && Array.isArray(data.items)) {
+      return { total: data.total ?? data.items.length, items: data.items.map(mapVacante) }
+    }
+    return { total: 0, items: [] }
   },
 
   async getVacante(id: string): Promise<Vacante> {
@@ -160,8 +166,8 @@ export const api = {
 
   async getCandidatosDeVacante(idVacante: string, q?: string): Promise<Candidato[]> {
     const suffix = q ? `?q=${encodeURIComponent(q)}` : ''
-    const data = await request<CandidatoApi[]>(`/vacantes/${idVacante}/candidatos${suffix}`)
-    return data.map(mapCandidato)
+    const data = await request<any>(`/vacantes/${idVacante}/candidatos${suffix}`)
+    return (Array.isArray(data) ? data : []).map(mapCandidato)
   },
 
   async getCandidato(idEvaluacion: string): Promise<Candidato> {

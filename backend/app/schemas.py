@@ -2,10 +2,10 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, List, Optional, Union
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 # ----------------------------- Auth -----------------------------
@@ -105,16 +105,48 @@ class HabilidadDetectada(BaseModel):
 
 class AnalisisIA(BaseModel):
     """Forma estricta que se le exige a Groq devolver (JSON mode)."""
-    es_cv: bool = Field(..., description="True si es un CV válido, False si es otro documento")
-    
+    es_cv: bool = Field(default=True, description="True si es un CV válido, False si es otro documento")
     justificacion_descarte: Optional[str] = None
     nombre_candidato: Optional[str] = None
     correo: Optional[str] = None
     telefono: Optional[str] = None
     habilidades_detectadas: List[HabilidadDetectada] = Field(default_factory=list)
-    porcentaje_compatibilidad: float = Field(..., ge=0, le=100)
+    porcentaje_compatibilidad: float = Field(default=0.0, ge=0, le=100)
     es_recomendado: bool = False
-    justificacion: str
+    justificacion: Optional[str] = ""
+
+    @field_validator("habilidades_detectadas", mode="before")
+    @classmethod
+    def normalizar_habilidades(cls, v: Any) -> list:
+        if not v:
+            return []
+        resultado = []
+        for item in v:
+            if isinstance(item, str):
+                resultado.append({"nombre": item.strip(), "nivel_detectado": None})
+            elif isinstance(item, dict):
+                resultado.append(item)
+            else:
+                resultado.append({"nombre": str(item), "nivel_detectado": None})
+        return resultado
+
+    @field_validator("porcentaje_compatibilidad", mode="before")
+    @classmethod
+    def normalizar_porcentaje(cls, v: Any) -> float:
+        if v is None:
+            return 0.0
+        try:
+            val = float(v)
+            return max(0.0, min(100.0, val))
+        except (ValueError, TypeError):
+            return 0.0
+
+    @field_validator("justificacion", mode="before")
+    @classmethod
+    def normalizar_justificacion(cls, v: Any) -> str:
+        if v is None:
+            return ""
+        return str(v)
 
 
 class EvaluacionOut(BaseModel):

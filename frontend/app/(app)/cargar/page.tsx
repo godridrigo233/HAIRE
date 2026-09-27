@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react"
 
+import { useRouter } from "next/navigation"
+
 import { PageHeader } from "@/components/haire/page-header"
 import { CvUploader } from "@/components/haire/cv-uploader"
 import {
@@ -16,6 +18,7 @@ import { type Vacante } from "@/lib/mock-data"
 import { api } from "@/lib/api"
 
 export default function CargarPage() {
+  const router = useRouter()
   const [activas, setActivas] = useState<Vacante[]>([])
   const [seleccion, setSeleccion] = useState("")
 
@@ -68,7 +71,12 @@ export default function CargarPage() {
                 ))}
               </div>
 
-              {seleccion && <CvUploader vacanteId={seleccion} />}
+              {seleccion && (
+                <CvUploader
+                  vacanteId={seleccion}
+                  onCompletado={() => router.push("/rankings")}
+                />
+              )}
             </>
           )}
         </CardContent>

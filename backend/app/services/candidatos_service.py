@@ -78,7 +78,7 @@ def _armar_candidato(
     )
 
 
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 
 def listar_candidatos_de_vacante(db: Session, id_vacante: uuid.UUID, q: Optional[str] = None) -> List[CandidatoOut]:
     """Candidatos evaluados de una vacante, ordenados por % descendente."""
