@@ -164,7 +164,7 @@ def analizar_cv(
         select(VacanteRequerimiento.es_obligatoria, VacanteRequerimiento.id_habilidad)
         .where(VacanteRequerimiento.id_vacante == vacante.id_vacante)
     ).all()
-    from app.models import Habilidad  # import local para evitar ciclos de lectura
+
 
     nombres_por_id = dict(
         db.execute(select(Habilidad.id_habilidad, Habilidad.nombre)).all()
