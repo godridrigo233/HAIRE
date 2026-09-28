@@ -131,10 +131,6 @@ def analizar_cv(
         except httpx.RequestError as exc:
             raise RuntimeError(f"Error de conexión con la API de Groq: {exc}") from exc
 
-        if resp.status_code == 404:
-            ultimo_error = f"Modelo '{modelo_actual}' no encontrado en Groq (404)"
-            continue
-
         if resp.status_code != 200:
             detalle = resp.text
             try:
@@ -143,6 +139,10 @@ def analizar_cv(
                     detalle = error_data["error"]["message"]
             except Exception:
                 pass
+
+            ultimo_error = f"Groq ({resp.status_code}): {detalle}"
+            if resp.status_code == 404:
+                continue
             raise RuntimeError(f"Groq API error ({resp.status_code}): {detalle}")
 
         tiempo_ms = int((time.perf_counter() - inicio_total) * 1000)
