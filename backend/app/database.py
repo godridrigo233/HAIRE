@@ -18,7 +18,7 @@ settings = get_settings()
 db_url = settings.database_url or "sqlite:///:memory:"
 is_sqlite = "sqlite" in db_url
 
-engine_kwargs = {"pool_pre_ping": True, "connect_args": {"connect_timeout": 5}}
+engine_kwargs = {"pool_pre_ping": True}
 if not is_sqlite:
     engine_kwargs.update({"pool_size": 5, "max_overflow": 5})
 
