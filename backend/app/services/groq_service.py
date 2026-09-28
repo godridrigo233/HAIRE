@@ -76,6 +76,52 @@ def _construir_prompt_usuario(
     )
 
 
+_GROQ_MODELS_URL = "https://api.groq.com/openai/v1/models"
+
+
+def _clasificar_modelo(model_id: str) -> int:
+    """Asigna una puntuación de calidad a los modelos de chat/texto de Groq."""
+    m = model_id.lower()
+    # Descartar modelos de audio, embeddings o guardrails
+    if any(x in m for x in ["whisper", "orpheus", "tts", "embedding", "guard", "safeguard", "moderation", "vision"]):
+        return -1
+    if "120b" in m:
+        return 120
+    if "70b" in m or "r1" in m:
+        return 100
+    if "27b" in m or "32b" in m or "qwq" in m:
+        return 80
+    if "20b" in m:
+        return 60
+    if "8b" in m or "9b" in m or "gemma" in m:
+        return 40
+    if "3b" in m or "1b" in m:
+        return 20
+    return 10
+
+
+def _obtener_modelos_disponibles(auth_header: str) -> List[str]:
+    """Consulta la API de Groq para obtener la lista real de modelos activos en la cuenta."""
+    try:
+        with httpx.Client(timeout=10.0) as client:
+            resp = client.get(_GROQ_MODELS_URL, headers={"Authorization": auth_header})
+            if resp.status_code == 200:
+                data = resp.json().get("data", [])
+                validos = [m["id"] for m in data if _clasificar_modelo(m.get("id", "")) > 0]
+                # Ordenar por calidad descendente
+                return sorted(validos, key=_clasificar_modelo, reverse=True)
+    except Exception:
+        pass
+    # Fallback estático con los modelos más recientes y comunes
+    return [
+        "openai/gpt-oss-120b",
+        "qwen/qwen3.6-27b",
+        "openai/gpt-oss-20b",
+        "llama-3.3-70b-versatile",
+        "llama-3.1-8b-instant",
+    ]
+
+
 def analizar_cv(
     texto_cv: str,
     titulo: str,
@@ -91,22 +137,29 @@ def analizar_cv(
             "Define una API key válida de Groq en las variables de entorno."
         )
 
+    auth_header = f"Bearer {api_key}"
+
     prompt_usuario = _construir_prompt_usuario(
         texto_cv, titulo, experiencia_minima,
         requeridas_obligatorias, requeridas_opcionales,
     )
 
-    # Normalizar nombre del modelo (elimina comillas y aliases obsoletos)
+    # 1. Obtener modelos activos reales de la cuenta de Groq
+    disponibles = _obtener_modelos_disponibles(auth_header)
+
+    # 2. Si el usuario configuró uno específico en GROQ_MODEL, darle prioridad
     modelo_config = (settings.groq_model or "").strip()
-    modelo_principal = _MODEL_ALIASES.get(modelo_config, modelo_config) or "llama-3.3-70b-versatile"
+    modelo_config = _MODEL_ALIASES.get(modelo_config, modelo_config)
 
-    # Probar el modelo principal; si devuelve 404, usar fallbacks
-    modelos_a_probar = [modelo_principal]
-    for backup in ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]:
-        if backup not in modelos_a_probar:
-            modelos_a_probar.append(backup)
+    modelos_a_probar: List[str] = []
+    if modelo_config and modelo_config in disponibles:
+        modelos_a_probar.append(modelo_config)
+    
+    # Agregar los mejores modelos disponibles descubiertos
+    for m in disponibles:
+        if m not in modelos_a_probar:
+            modelos_a_probar.append(m)
 
-    auth_header = f"Bearer {api_key}"
     ultimo_error: str | None = None
     inicio_total = time.perf_counter()
 
