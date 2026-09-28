@@ -75,6 +75,7 @@ def _armar_candidato(
         justificacion=evaluacion.justificacion_ia,
         requeridas=requeridas,
         adicionales=adicionales,
+        pdf_url=curriculum.archivo_pdf_url,
     )
 
 

@@ -38,6 +38,7 @@ export interface Candidato {
   requeridas: HabilidadEvaluada[]
   // Habilidades detectadas que NO eran requisito
   adicionales: string[]
+  pdfUrl?: string
 }
 
 export const usuarioActual = {

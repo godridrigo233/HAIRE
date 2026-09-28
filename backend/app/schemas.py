@@ -190,6 +190,7 @@ class CandidatoOut(BaseModel):
     justificacion: Optional[str] = None
     requeridas: List[HabilidadEvaluadaOut] = Field(default_factory=list)
     adicionales: List[str] = Field(default_factory=list)
+    pdf_url: Optional[str] = None
 
 
 # ---------------------------- Scoring ----------------------------

@@ -86,6 +86,7 @@ interface CandidatoApi {
   justificacion: string | null
   requeridas: { nombre: string; cumple: boolean; obligatoria: boolean }[]
   adicionales: string[]
+  pdf_url?: string | null
 }
 
 function mapVacante(v: VacanteApi): Vacante {
@@ -116,6 +117,7 @@ function mapCandidato(c: CandidatoApi): Candidato {
     justificacion: c.justificacion ?? "",
     requeridas: c.requeridas,
     adicionales: c.adicionales,
+    pdfUrl: c.pdf_url ?? undefined,
   }
 }
 

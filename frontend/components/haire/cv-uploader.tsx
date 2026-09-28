@@ -176,23 +176,43 @@ export function CvUploader({
         onDragLeave={() => setArrastrando(false)}
         onDrop={handleDrop}
         className={cn(
-          "flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-12 text-center transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+          "relative overflow-hidden flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed px-6 py-12 text-center transition-all duration-300 outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
           arrastrando
-            ? "border-brand bg-brand/5"
-            : "border-border bg-muted/30 hover:border-brand/50 hover:bg-muted/50",
+            ? "border-brand bg-brand/10 scale-[1.01] shadow-lg shadow-brand/10"
+            : "border-border bg-card/50 hover:border-brand/50 hover:bg-muted/40",
+          analizando && "border-brand/70 bg-brand/5",
         )}
       >
-        <div className="flex size-14 items-center justify-center rounded-full bg-brand/10 text-brand">
-          <UploadCloud className="size-7" />
+        {/* Láser de escaneo futurista cuando la IA está analizando */}
+        {analizando && (
+          <div className="pointer-events-none absolute inset-x-0 h-1 bg-gradient-to-r from-transparent via-brand to-transparent shadow-[0_0_12px_var(--brand)] animate-scan-laser" />
+        )}
+
+        <div className="relative">
+          <div className="flex size-16 items-center justify-center rounded-2xl bg-brand/10 text-brand transition-transform group-hover:scale-105">
+            <UploadCloud className="size-8" />
+          </div>
+          {analizando && (
+            <span className="absolute -bottom-1 -right-1 flex h-4 w-4">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand opacity-75" />
+              <span className="relative inline-flex rounded-full h-4 w-4 bg-brand" />
+            </span>
+          )}
         </div>
+
         <div>
-          <p className="font-medium text-foreground">
-            Arrastra los CVs aquí o haz clic para seleccionar archivos
+          <p className="font-semibold text-foreground text-base">
+            {analizando
+              ? "Procesando CVs con Inteligencia Artificial..."
+              : "Arrastra los CVs aquí o haz clic para seleccionar"}
           </p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Puedes subir varios PDF a la vez · Máximo 10MB por archivo
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            {analizando
+              ? "Extrayendo habilidades, experiencia y calculando compatibilidad"
+              : "Formatos soportados: PDF · Múltiples archivos a la vez · Hasta 10MB"}
           </p>
         </div>
+
         <input
           ref={inputRef}
           type="file"

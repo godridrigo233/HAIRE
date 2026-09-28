@@ -15,6 +15,8 @@ import {
   User,
   Bell,
   Shield,
+  Sun,
+  Moon,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -62,6 +64,31 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [usuario, setUsuario] = useState<UsuarioSesion | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
+  const [isDark, setIsDark] = useState(false)
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("haire_theme")
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches
+    const shouldBeDark = savedTheme === "dark" || (!savedTheme && prefersDark)
+    setIsDark(shouldBeDark)
+    if (shouldBeDark) {
+      document.documentElement.classList.add("dark")
+    } else {
+      document.documentElement.classList.remove("dark")
+    }
+  }, [])
+
+  const toggleTheme = () => {
+    const nextDark = !isDark
+    setIsDark(nextDark)
+    if (nextDark) {
+      document.documentElement.classList.add("dark")
+      localStorage.setItem("haire_theme", "dark")
+    } else {
+      document.documentElement.classList.remove("dark")
+      localStorage.setItem("haire_theme", "light")
+    }
+  }
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -145,7 +172,21 @@ export function AppShell({ children }: { children: ReactNode }) {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </form>
-          <div className="ml-auto flex items-center gap-3">
+          <div className="ml-auto flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleTheme}
+              className="h-9 w-9 text-muted-foreground hover:text-foreground"
+              title={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+              aria-label="Alternar tema claro/oscuro"
+            >
+              {isDark ? (
+                <Sun className="h-4 w-4 text-warning" />
+              ) : (
+                <Moon className="h-4 w-4 text-muted-foreground" />
+              )}
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger
                 className="flex items-center gap-2 rounded-lg px-1.5 py-1 outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"

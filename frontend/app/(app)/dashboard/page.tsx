@@ -177,17 +177,17 @@ function ResumenCard({
   hint: string
 }) {
   return (
-    <Card>
+    <Card className="transition-all duration-200 hover:-translate-y-1 hover:shadow-md glass-card">
       <CardContent className="flex items-center gap-4 py-5">
-        <div className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground">
+        <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-brand/10 text-brand">
           {icon}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm text-muted-foreground">{label}</p>
+          <p className="text-sm font-medium text-muted-foreground">{label}</p>
           {cargando ? (
             <Skeleton className="mt-1 h-8 w-16" />
           ) : (
-            <p className="text-3xl font-semibold tabular-nums text-foreground">
+            <p className="text-3xl font-bold tabular-nums text-foreground">
               {value}
             </p>
           )}

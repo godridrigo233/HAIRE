@@ -24,11 +24,17 @@ export function ScoreCircle({
 
   return (
     <div
-      className="relative flex items-center justify-center"
+      className="relative flex items-center justify-center group"
       style={{ width: size, height: size }}
       role="img"
       aria-label={`Compatibilidad ${score}%`}
     >
+      {/* Halo brillante difuso de fondo */}
+      <div
+        className="absolute inset-2 rounded-full opacity-20 blur-xl animate-pulse-halo pointer-events-none transition-all duration-700"
+        style={{ backgroundColor: color }}
+      />
+
       <svg width={size} height={size} className="-rotate-90">
         <circle
           cx={size / 2}
@@ -53,13 +59,13 @@ export function ScoreCircle({
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span
-          className={cn("text-4xl font-bold tabular-nums")}
+          className={cn("text-4xl font-extrabold tabular-nums tracking-tight")}
           style={{ color }}
         >
           {score}%
         </span>
-        <span className="text-xs font-medium text-muted-foreground">
-          Compatibilidad
+        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mt-0.5">
+          Match IA
         </span>
       </div>
     </div>

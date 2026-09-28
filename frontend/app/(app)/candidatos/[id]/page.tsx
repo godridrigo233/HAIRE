@@ -11,11 +11,21 @@ import {
   X,
   Sparkles,
   Trophy,
+  FileText,
+  ExternalLink,
+  Download,
 } from "lucide-react"
 
 import { PageHeader } from "@/components/haire/page-header"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import {
   Card,
   CardContent,
@@ -37,6 +47,7 @@ export default function CandidatoDetallePage({
   const [vacante, setVacante] = useState<Vacante | null>(null)
   const [cargando, setCargando] = useState(true)
   const [noExiste, setNoExiste] = useState(false)
+  const [pdfModalOpen, setPdfModalOpen] = useState(false)
 
   useEffect(() => {
     api
@@ -54,29 +65,55 @@ export default function CandidatoDetallePage({
   if (noExiste) notFound()
   if (!candidato) return null
 
+  // Calcular estadísticas de ajuste de habilidades
+  const obligatorias = candidato.requeridas.filter((r) => r.obligatoria)
+  const obligatoriasCumplidas = obligatorias.filter((r) => r.cumple)
+  const obligatoriasPct = obligatorias.length
+    ? Math.round((obligatoriasCumplidas.length / obligatorias.length) * 100)
+    : 100
+
+  const opcionales = candidato.requeridas.filter((r) => !r.obligatoria)
+  const opcionalesCumplidas = opcionales.filter((r) => r.cumple)
+  const opcionalesPct = opcionales.length
+    ? Math.round((opcionalesCumplidas.length / opcionales.length) * 100)
+    : 100
+
   return (
-    <div className="mx-auto max-w-4xl">
-      <Link
-        href={`/vacantes/${candidato.vacanteId}`}
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" />
-        Volver al ranking
-      </Link>
+    <div className="mx-auto max-w-4xl space-y-6">
+      <div className="flex items-center justify-between">
+        <Link
+          href={`/vacantes/${candidato.vacanteId}`}
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="size-4" />
+          Volver al ranking
+        </Link>
+        {candidato.pdfUrl && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPdfModalOpen(true)}
+            className="gap-2 border-brand/40 text-foreground hover:bg-brand/10"
+          >
+            <FileText className="size-4 text-brand" />
+            Ver Documento CV
+          </Button>
+        )}
+      </div>
 
       <PageHeader title={candidato.nombre}>
         {candidato.esRecomendado && (
-          <Badge className="bg-brand text-brand-foreground">
+          <Badge className="bg-brand text-brand-foreground shadow-sm">
             <Trophy className="size-3" />
-            Recomendado
+            Recomendado por IA
           </Badge>
         )}
       </PageHeader>
 
       <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
-        {/* Columna izquierda: score + contacto */}
+        {/* Columna izquierda: score + contacto + métricas */}
         <div className="space-y-6">
-          <Card>
+          <Card className="glass-card shadow-sm">
             <CardContent className="flex flex-col items-center gap-4 py-8">
               {cargando ? (
                 <Skeleton className="size-40 rounded-full" />
@@ -84,29 +121,67 @@ export default function CandidatoDetallePage({
                 <ScoreCircle score={candidato.porcentaje} />
               )}
               <div className="text-center">
-                <p className="text-sm text-muted-foreground">
-                  Compatibilidad con la vacante
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Compatibilidad General
                 </p>
                 {vacante && (
-                  <p className="text-sm font-medium text-foreground">
+                  <p className="mt-1 text-sm font-medium text-foreground">
                     {vacante.titulo}
                   </p>
+                )}
+              </div>
+
+              {/* Barras de desglose */}
+              <div className="w-full space-y-3 pt-4 border-t border-border/60">
+                <div className="space-y-1">
+                  <div className="flex justify-between text-xs">
+                    <span className="font-medium text-muted-foreground">Requisitos Obligatorios</span>
+                    <span className="font-semibold text-foreground">
+                      {obligatoriasCumplidas.length}/{obligatorias.length} ({obligatoriasPct}%)
+                    </span>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                    <div
+                      className={cn(
+                        "h-full rounded-full transition-all duration-500",
+                        obligatoriasPct === 100 ? "bg-success" : "bg-warning",
+                      )}
+                      style={{ width: `${obligatoriasPct}%` }}
+                    />
+                  </div>
+                </div>
+
+                {opcionales.length > 0 && (
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="font-medium text-muted-foreground">Habilidades Opcionales</span>
+                      <span className="font-semibold text-foreground">
+                        {opcionalesCumplidas.length}/{opcionales.length} ({opcionalesPct}%)
+                      </span>
+                    </div>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full bg-brand transition-all duration-500"
+                        style={{ width: `${opcionalesPct}%` }}
+                      />
+                    </div>
+                  </div>
                 )}
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Datos de contacto</CardTitle>
+          <Card className="glass-card shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Datos de contacto</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               <div className="flex items-center gap-2.5">
-                <Mail className="size-4 text-muted-foreground" />
-                <span className="text-foreground">{candidato.correo}</span>
+                <Mail className="size-4 text-brand shrink-0" />
+                <span className="text-foreground truncate">{candidato.correo || "No registrado"}</span>
               </div>
               <div className="flex items-center gap-2.5">
-                <Phone className="size-4 text-muted-foreground" />
+                <Phone className="size-4 text-brand shrink-0" />
                 <span
                   className={
                     candidato.telefono
@@ -117,6 +192,19 @@ export default function CandidatoDetallePage({
                   {candidato.telefono ?? "No detectado"}
                 </span>
               </div>
+              {candidato.pdfUrl && (
+                <div className="pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full gap-2 text-xs"
+                    onClick={() => setPdfModalOpen(true)}
+                  >
+                    <FileText className="size-3.5" />
+                    Vista previa de CV
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -182,7 +270,7 @@ export default function CandidatoDetallePage({
 
           <Card
             className={cn(
-              "border-l-4",
+              "border-l-4 glass-card shadow-sm",
               nivelColor(candidato.porcentaje) === "success"
                 ? "border-l-success"
                 : nivelColor(candidato.porcentaje) === "warning"
@@ -204,6 +292,43 @@ export default function CandidatoDetallePage({
           </Card>
         </div>
       </div>
+
+      {/* Modal de Vista Previa de Documento PDF */}
+      <Dialog open={pdfModalOpen} onOpenChange={setPdfModalOpen}>
+        <DialogContent className="max-w-4xl h-[85vh] flex flex-col p-4">
+          <DialogHeader className="flex flex-row items-center justify-between pb-2 border-b">
+            <div>
+              <DialogTitle className="text-base flex items-center gap-2">
+                <FileText className="size-4 text-brand" />
+                Curriculum Vitae: {candidato.nombre}
+              </DialogTitle>
+            </div>
+            {candidato.pdfUrl && (
+              <a
+                href={candidato.pdfUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-brand hover:underline font-medium"
+              >
+                <Download className="size-3.5" /> Descargar / Abrir en pestaña
+              </a>
+            )}
+          </DialogHeader>
+          <div className="flex-1 w-full h-full min-h-0 bg-muted/40 rounded-lg overflow-hidden mt-2">
+            {candidato.pdfUrl ? (
+              <iframe
+                src={candidato.pdfUrl}
+                className="w-full h-full border-0"
+                title={`CV de ${candidato.nombre}`}
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
+                No hay URL de documento disponible para este candidato.
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

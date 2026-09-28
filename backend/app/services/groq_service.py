@@ -16,7 +16,7 @@ from app.schemas import AnalisisIA
 settings = get_settings()
 
 _GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
-_TIMEOUT_SEG = 60.0
+_TIMEOUT_SEG = 20.0
 
 _SYSTEM_PROMPT = (
     "Eres un analista de reclutamiento experto. Tu primera tarea crítica es verificar si el texto "
@@ -77,49 +77,63 @@ def _construir_prompt_usuario(
 
 
 _GROQ_MODELS_URL = "https://api.groq.com/openai/v1/models"
+_MODELOS_CACHE: List[str] = []
+_MODELOS_CACHE_TS: float = 0.0
 
 
 def _clasificar_modelo(model_id: str) -> int:
-    """Asigna una puntuación de calidad a los modelos de chat/texto de Groq."""
+    """Asigna una puntuación de velocidad y calidad a los modelos de chat en Groq."""
     m = model_id.lower()
-    # Descartar modelos de audio, embeddings o guardrails
+    # Descartar modelos no-chat
     if any(x in m for x in ["whisper", "orpheus", "tts", "embedding", "guard", "safeguard", "moderation", "vision"]):
         return -1
-    if "120b" in m:
+    # Modelos Llama 3.3/3.1 en Groq son ultra-rápidos (sub-segundo) y de altísima precisión
+    if "llama-3.3-70b" in m:
+        return 200
+    if "llama-3.1-8b" in m:
+        return 180
+    if "qwen3.6-27b" in m or "qwen-2.5-32b" in m:
+        return 160
+    if "70b" in m:
+        return 140
+    if "8b" in m or "gemma" in m:
         return 120
-    if "70b" in m or "r1" in m:
+    if "120b" in m:
         return 100
-    if "27b" in m or "32b" in m or "qwq" in m:
+    if "20b" in m or "27b" in m:
         return 80
-    if "20b" in m:
-        return 60
-    if "8b" in m or "9b" in m or "gemma" in m:
-        return 40
-    if "3b" in m or "1b" in m:
-        return 20
     return 10
 
 
 def _obtener_modelos_disponibles(auth_header: str) -> List[str]:
-    """Consulta la API de Groq para obtener la lista real de modelos activos en la cuenta."""
+    """Obtiene los modelos disponibles con caché en memoria de 1 hora."""
+    global _MODELOS_CACHE, _MODELOS_CACHE_TS
+    ahora = time.time()
+    if _MODELOS_CACHE and (ahora - _MODELOS_CACHE_TS < 3600):
+        return _MODELOS_CACHE
+
     try:
-        with httpx.Client(timeout=10.0) as client:
+        with httpx.Client(timeout=4.0) as client:
             resp = client.get(_GROQ_MODELS_URL, headers={"Authorization": auth_header})
             if resp.status_code == 200:
                 data = resp.json().get("data", [])
                 validos = [m["id"] for m in data if _clasificar_modelo(m.get("id", "")) > 0]
-                # Ordenar por calidad descendente
-                return sorted(validos, key=_clasificar_modelo, reverse=True)
+                _MODELOS_CACHE = sorted(validos, key=_clasificar_modelo, reverse=True)
+                _MODELOS_CACHE_TS = ahora
+                return _MODELOS_CACHE
     except Exception:
         pass
-    # Fallback estático con los modelos más recientes y comunes
-    return [
-        "openai/gpt-oss-120b",
-        "qwen/qwen3.6-27b",
-        "openai/gpt-oss-20b",
+
+    # Fallback estático con los modelos más veloces primero
+    fallback = [
         "llama-3.3-70b-versatile",
         "llama-3.1-8b-instant",
+        "qwen/qwen3.6-27b",
+        "openai/gpt-oss-120b",
     ]
+    _MODELOS_CACHE = fallback
+    _MODELOS_CACHE_TS = ahora
+    return fallback
 
 
 def analizar_cv(
