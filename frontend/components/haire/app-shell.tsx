@@ -17,11 +17,14 @@ import {
   Shield,
   Sun,
   Moon,
+  Loader2,
+  KeyRound,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Logo } from "@/components/haire/logo"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import {
   Avatar,
@@ -47,9 +50,12 @@ import {
   getToken,
   getUsuario,
   cerrarSesion,
+  actualizarUsuarioSesion,
   iniciales as inicialesDe,
   type UsuarioSesion,
 } from "@/lib/auth"
+import { api, ApiError } from "@/lib/api"
+import { useToast } from "@/components/haire/toast"
 
 const navItems = [
   { href: "/dashboard", label: "Panel de Control", icon: LayoutDashboard },
@@ -61,10 +67,107 @@ const navItems = [
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
+  const { toast } = useToast()
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [settingsTab, setSettingsTab] = useState<"perfil" | "seguridad">("perfil")
   const [usuario, setUsuario] = useState<UsuarioSesion | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [isDark, setIsDark] = useState(false)
+
+  // Estados del formulario de perfil
+  const [nombres, setNombres] = useState("")
+  const [apellidos, setApellidos] = useState("")
+  const [guardandoPerfil, setGuardandoPerfil] = useState(false)
+  const [errorPerfil, setErrorPerfil] = useState("")
+
+  // Estados del formulario de contraseña
+  const [passActual, setPassActual] = useState("")
+  const [passNueva, setPassNueva] = useState("")
+  const [passConfirmar, setPassConfirmar] = useState("")
+  const [guardandoPass, setGuardandoPass] = useState(false)
+  const [errorPass, setErrorPass] = useState("")
+
+  useEffect(() => {
+    if (settingsOpen && usuario) {
+      setNombres(usuario.nombres || "")
+      setApellidos(usuario.apellidos || "")
+      setErrorPerfil("")
+      setPassActual("")
+      setPassNueva("")
+      setPassConfirmar("")
+      setErrorPass("")
+    }
+  }, [settingsOpen, usuario])
+
+  const handleGuardarPerfil = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!nombres.trim() || !apellidos.trim()) {
+      setErrorPerfil("Nombres y apellidos son requeridos")
+      return
+    }
+    setErrorPerfil("")
+    setGuardandoPerfil(true)
+    try {
+      const actualizado = await api.actualizarPerfil({
+        nombres: nombres.trim(),
+        apellidos: apellidos.trim(),
+      })
+      actualizarUsuarioSesion({
+        nombres: actualizado.nombres,
+        apellidos: actualizado.apellidos,
+      })
+      setUsuario((prev) =>
+        prev
+          ? {
+              ...prev,
+              nombres: actualizado.nombres,
+              apellidos: actualizado.apellidos,
+            }
+          : null,
+      )
+      toast("success", "Perfil actualizado con éxito")
+      setSettingsOpen(false)
+    } catch (err: any) {
+      setErrorPerfil(err?.message || "Error al actualizar perfil")
+      toast("error", "Error al actualizar perfil")
+    } finally {
+      setGuardandoPerfil(false)
+    }
+  }
+
+  const handleCambiarPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!passActual) {
+      setErrorPass("Ingresa tu contraseña actual")
+      return
+    }
+    if (passNueva.length < 6) {
+      setErrorPass("La nueva contraseña debe tener al menos 6 caracteres")
+      return
+    }
+    if (passNueva !== passConfirmar) {
+      setErrorPass("Las contraseñas no coinciden")
+      return
+    }
+    setErrorPass("")
+    setGuardandoPass(true)
+    try {
+      await api.cambiarPassword({
+        passwordActual: passActual,
+        passwordNueva: passNueva,
+      })
+      toast("success", "Contraseña actualizada exitosamente")
+      setPassActual("")
+      setPassNueva("")
+      setPassConfirmar("")
+      setSettingsOpen(false)
+    } catch (err: any) {
+      setErrorPass(err?.message || "Error al actualizar contraseña")
+      toast("error", err?.message || "Error al actualizar contraseña")
+    } finally {
+      setGuardandoPass(false)
+    }
+  }
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("haire_theme")
@@ -263,59 +366,167 @@ export function AppShell({ children }: { children: ReactNode }) {
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Configuración</DialogTitle>
+            <DialogTitle>Configuración de la Cuenta</DialogTitle>
             <DialogDescription>
-              Ajustes de tu cuenta y preferencias de la plataforma.
+              Gestiona tus datos personales y credenciales de acceso.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-2">
-            {/* Profile section */}
-            <div className="rounded-lg border border-border p-4 space-y-3">
-              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                <User className="size-4 text-primary" />
-                Perfil
-              </div>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
-                <span className="text-muted-foreground">Nombre</span>
-                <span className="font-medium">{nombreCompleto}</span>
-                <span className="text-muted-foreground">Correo</span>
-                <span className="font-medium truncate">{usuario.correo}</span>
-                <span className="text-muted-foreground">Rol</span>
-                <span className="font-medium capitalize">{usuario.rol}</span>
-              </div>
-            </div>
-
-            {/* Notifications section */}
-            <div className="rounded-lg border border-border p-4 space-y-3">
-              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                <Bell className="size-4 text-primary" />
-                Notificaciones
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Las notificaciones por correo se activan automáticamente al completar el análisis de CVs.
-              </p>
-            </div>
-
-            {/* Security section */}
-            <div className="rounded-lg border border-border p-4 space-y-3">
-              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                <Shield className="size-4 text-primary" />
-                Seguridad
-              </div>
-              <p className="text-sm text-muted-foreground">
-                La gestión avanzada de contraseñas y roles estará disponible en la versión completa del MVP.
-              </p>
-            </div>
+          {/* Selector de pestañas */}
+          <div className="flex border-b border-border">
+            <button
+              type="button"
+              onClick={() => setSettingsTab("perfil")}
+              className={cn(
+                "flex flex-1 items-center justify-center gap-2 border-b-2 py-2 text-sm font-medium transition-colors",
+                settingsTab === "perfil"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <User className="size-4" />
+              Mi Perfil
+            </button>
+            <button
+              type="button"
+              onClick={() => setSettingsTab("seguridad")}
+              className={cn(
+                "flex flex-1 items-center justify-center gap-2 border-b-2 py-2 text-sm font-medium transition-colors",
+                settingsTab === "seguridad"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <KeyRound className="size-4" />
+              Seguridad
+            </button>
           </div>
 
-          <DialogFooter>
-            <Button onClick={() => setSettingsOpen(false)}>
-              Cerrar
-            </Button>
-          </DialogFooter>
+          {settingsTab === "perfil" && (
+            <form onSubmit={handleGuardarPerfil} className="space-y-4 py-2">
+              {errorPerfil && (
+                <div className="rounded-md bg-destructive/10 p-2.5 text-xs text-destructive">
+                  {errorPerfil}
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label htmlFor="perfil-nombres">Nombres</Label>
+                <Input
+                  id="perfil-nombres"
+                  value={nombres}
+                  onChange={(e) => setNombres(e.target.value)}
+                  placeholder="Tus nombres"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="perfil-apellidos">Apellidos</Label>
+                <Input
+                  id="perfil-apellidos"
+                  value={apellidos}
+                  onChange={(e) => setApellidos(e.target.value)}
+                  placeholder="Tus apellidos"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="perfil-correo">Correo Electrónico</Label>
+                <Input
+                  id="perfil-correo"
+                  value={usuario.correo}
+                  disabled
+                  className="bg-muted opacity-80 cursor-not-allowed"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  El correo es el identificador principal de tu cuenta y no puede modificarse.
+                </p>
+              </div>
+
+              <DialogFooter className="pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setSettingsOpen(false)}
+                  disabled={guardandoPerfil}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={guardandoPerfil}
+                  className="bg-primary text-primary-foreground gap-2"
+                >
+                  {guardandoPerfil && <Loader2 className="size-4 animate-spin" />}
+                  Guardar Cambios
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+
+          {settingsTab === "seguridad" && (
+            <form onSubmit={handleCambiarPassword} className="space-y-4 py-2">
+              {errorPass && (
+                <div className="rounded-md bg-destructive/10 p-2.5 text-xs text-destructive">
+                  {errorPass}
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label htmlFor="pass-actual">Contraseña Actual</Label>
+                <Input
+                  id="pass-actual"
+                  type="password"
+                  value={passActual}
+                  onChange={(e) => setPassActual(e.target.value)}
+                  placeholder="Tu contraseña actual"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="pass-nueva">Nueva Contraseña</Label>
+                <Input
+                  id="pass-nueva"
+                  type="password"
+                  value={passNueva}
+                  onChange={(e) => setPassNueva(e.target.value)}
+                  placeholder="Mínimo 6 caracteres"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="pass-confirmar">Confirmar Nueva Contraseña</Label>
+                <Input
+                  id="pass-confirmar"
+                  type="password"
+                  value={passConfirmar}
+                  onChange={(e) => setPassConfirmar(e.target.value)}
+                  placeholder="Repite la nueva contraseña"
+                  required
+                />
+              </div>
+
+              <DialogFooter className="pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setSettingsOpen(false)}
+                  disabled={guardandoPass}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={guardandoPass}
+                  className="bg-primary text-primary-foreground gap-2"
+                >
+                  {guardandoPass && <Loader2 className="size-4 animate-spin" />}
+                  Actualizar Contraseña
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
     </div>
   )
 }
+

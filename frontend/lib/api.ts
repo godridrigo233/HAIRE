@@ -273,4 +273,21 @@ export const api = {
     )
     return { token: data.access_token, usuario: data.usuario }
   },
+
+  async actualizarPerfil(datos: { nombres?: string; apellidos?: string }): Promise<UsuarioSesion> {
+    return await request<UsuarioSesion>('/auth/me', {
+      method: 'PATCH',
+      body: JSON.stringify(datos),
+    })
+  },
+
+  async cambiarPassword(datos: { passwordActual: string; passwordNueva: string }): Promise<{ mensaje: string }> {
+    return await request<{ mensaje: string }>('/auth/password', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        password_actual: datos.passwordActual,
+        password_nueva: datos.passwordNueva,
+      }),
+    })
+  },
 }

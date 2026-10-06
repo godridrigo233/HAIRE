@@ -44,6 +44,7 @@ import { ScoreCircle } from "@/components/haire/score-circle"
 import { cn } from "@/lib/utils"
 import { nivelColor, type Candidato, type Vacante } from "@/lib/mock-data"
 import { api, ApiError } from "@/lib/api"
+import { useToast } from "@/components/haire/toast"
 
 export default function CandidatoDetallePage({
   params,
@@ -51,6 +52,7 @@ export default function CandidatoDetallePage({
   params: Promise<{ id: string }>
 }) {
   const { id } = use(params)
+  const { toast } = useToast()
   const [candidato, setCandidato] = useState<Candidato | null>(null)
   const [vacante, setVacante] = useState<Vacante | null>(null)
   const [cargando, setCargando] = useState(true)
@@ -90,8 +92,11 @@ export default function CandidatoDetallePage({
     try {
       await api.cambiarEtapaCandidato(id, nuevaEtapa)
       setCandidato((prev) => (prev ? { ...prev, etapa: nuevaEtapa } : null))
+      const label = ETAPAS_CONFIG[nuevaEtapa]?.label || nuevaEtapa
+      toast("success", `Etapa cambiada a "${label}"`)
     } catch (err) {
       console.error("Error cambiando etapa:", err)
+      toast("error", "Error al actualizar la etapa del candidato")
     }
   }
 

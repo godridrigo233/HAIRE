@@ -20,6 +20,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { api, ApiError } from "@/lib/api"
+import { useToast } from "@/components/haire/toast"
 
 interface Skill {
   nombre: string
@@ -33,6 +34,7 @@ export default function EditarVacantePage({
 }) {
   const { id } = use(params)
   const router = useRouter()
+  const { toast } = useToast()
   const [cargando, setCargando] = useState(true)
   const [titulo, setTitulo] = useState("")
   const [descripcion, setDescripcion] = useState("")
@@ -109,13 +111,15 @@ export default function EditarVacantePage({
           es_obligatoria: s.obligatoria,
         })),
       })
+      toast("success", "Vacante actualizada exitosamente")
       router.push(`/vacantes/${id}`)
     } catch (err) {
-      setError(
+      const msg =
         err instanceof ApiError
           ? err.message
-          : "No se pudo actualizar la vacante. Intenta de nuevo.",
-      )
+          : "No se pudo actualizar la vacante. Intenta de nuevo."
+      setError(msg)
+      toast("error", msg)
       setGuardando(false)
     }
   }

@@ -38,6 +38,16 @@ class LoginResponse(BaseModel):
     usuario: UsuarioOut
 
 
+class UsuarioUpdate(BaseModel):
+    nombres: Optional[str] = None
+    apellidos: Optional[str] = None
+
+
+class CambiarPasswordRequest(BaseModel):
+    password_actual: str
+    password_nueva: str = Field(..., min_length=6)
+
+
 # --------------------------- Vacantes ---------------------------
 class RequerimientoIn(BaseModel):
     nombre: str = Field(..., description="Nombre de la habilidad requerida")

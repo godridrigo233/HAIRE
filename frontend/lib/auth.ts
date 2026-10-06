@@ -34,6 +34,15 @@ export function getUsuario(): UsuarioSesion | null {
   }
 }
 
+export function actualizarUsuarioSesion(datos: Partial<UsuarioSesion>): UsuarioSesion | null {
+  if (typeof window === "undefined") return null
+  const actual = getUsuario()
+  if (!actual) return null
+  const nuevo = { ...actual, ...datos }
+  localStorage.setItem(USER_KEY, JSON.stringify(nuevo))
+  return nuevo
+}
+
 export function cerrarSesion() {
   if (typeof window === "undefined") return
   localStorage.removeItem(TOKEN_KEY)

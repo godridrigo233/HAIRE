@@ -3,11 +3,12 @@
 import { use, useEffect, useState } from "react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, Upload, Trophy, Briefcase, Lock, LockOpen, Loader2, Pencil } from "lucide-react"
+import { ArrowLeft, Upload, Trophy, Briefcase, Lock, LockOpen, Loader2, Pencil, Columns3 } from "lucide-react"
 
 import { PageHeader } from "@/components/haire/page-header"
 import { CvUploader } from "@/components/haire/cv-uploader"
 import { RankingView } from "@/components/haire/ranking-view"
+import { KanbanView } from "@/components/haire/kanban-view"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -21,7 +22,7 @@ import { cn } from "@/lib/utils"
 import { formatearFecha, type Vacante } from "@/lib/mock-data"
 import { api, ApiError } from "@/lib/api"
 
-type Tab = "ranking" | "cargar"
+type Tab = "ranking" | "kanban" | "cargar"
 
 export default function VacanteDetallePage({
   params,
@@ -171,6 +172,13 @@ export default function VacanteDetallePage({
           Ranking de candidatos
         </TabButton>
         <TabButton
+          active={tab === "kanban"}
+          onClick={() => setTab("kanban")}
+          icon={<Columns3 className="size-4" />}
+        >
+          Pipeline Kanban
+        </TabButton>
+        <TabButton
           active={tab === "cargar"}
           onClick={() => setTab("cargar")}
           icon={<Upload className="size-4" />}
@@ -181,6 +189,8 @@ export default function VacanteDetallePage({
 
       {tab === "ranking" ? (
         <RankingView vacanteId={vacante.id} cargando={cargando} />
+      ) : tab === "kanban" ? (
+        <KanbanView vacanteId={vacante.id} />
       ) : (
         <CvUploader
           vacanteId={vacante.id}

@@ -37,6 +37,7 @@ import {
 import { cn } from "@/lib/utils"
 import type { Candidato } from "@/lib/mock-data"
 import { api } from "@/lib/api"
+import { useToast } from "@/components/haire/toast"
 
 export const ETAPAS_CONFIG: Record<
   string,
@@ -79,6 +80,7 @@ export function RankingView({
   cargando?: boolean
   onRefresh?: () => void
 }) {
+  const { toast } = useToast()
   const [candidatos, setCandidatos] = useState<Candidato[]>([])
   const [cargandoDatos, setCargandoDatos] = useState(true)
   const [q, setQ] = useState("")
@@ -129,8 +131,10 @@ export function RankingView({
       setCandidatos((prev) =>
         prev.map((c) => (c.id === candidatoId ? { ...c, etapa: nuevaEtapa } : c)),
       )
+      toast("success", `Etapa actualizada a "${ETAPAS_CONFIG[nuevaEtapa]?.label || nuevaEtapa}"`)
     } catch (err) {
       console.error("Error cambiando etapa:", err)
+      toast("error", "Error al actualizar la etapa")
     }
   }
 
@@ -141,9 +145,11 @@ export function RankingView({
       await api.eliminarCandidato(candidatoId)
       setCandidatos((prev) => prev.filter((c) => c.id !== candidatoId))
       setTotal((prev) => Math.max(0, prev - 1))
+      toast("info", "Candidato eliminado")
       onRefresh?.()
     } catch (err) {
       console.error("Error eliminando candidato", err)
+      toast("error", "Error al eliminar candidato")
     }
   }
 
@@ -179,6 +185,7 @@ export function RankingView({
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+    toast("success", "Reporte CSV descargado con éxito")
   }
 
   const recomendado = candidatos.find((c) => c.esRecomendado) ?? candidatos[0]
