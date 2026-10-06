@@ -11,6 +11,7 @@ import {
   ChevronRight,
   ChevronDown,
   Filter,
+  Download,
 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -144,6 +145,40 @@ export function RankingView({
     } catch (err) {
       console.error("Error eliminando candidato", err)
     }
+  }
+
+  const exportarCSV = () => {
+    if (!candidatos.length) return
+    const headers = [
+      "Nombre",
+      "Email",
+      "Telefono",
+      "Compatibilidad (%)",
+      "Etapa",
+      "Recomendado por IA",
+      "Justificacion",
+    ]
+    const rows = candidatos.map((c) => [
+      `"${c.nombre.replace(/"/g, '""')}"`,
+      `"${(c.correo || "").replace(/"/g, '""')}"`,
+      `"${(c.telefono || "").replace(/"/g, '""')}"`,
+      c.porcentaje,
+      `"${ETAPAS_CONFIG[c.etapa || "nuevo"]?.label || c.etapa}"`,
+      c.esRecomendado ? "Si" : "No",
+      `"${(c.justificacion || "").replace(/"/g, '""')}"`,
+    ])
+
+    const csvContent =
+      "data:text/csv;charset=utf-8,\uFEFF" +
+      [headers.join(","), ...rows.map((e) => e.join(","))].join("\n")
+
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement("a")
+    link.setAttribute("href", encodedUri)
+    link.setAttribute("download", `ranking_candidatos_${vacanteId}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
   }
 
   const recomendado = candidatos.find((c) => c.esRecomendado) ?? candidatos[0]
@@ -315,6 +350,18 @@ export function RankingView({
                 </button>
               ))}
             </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={exportarCSV}
+              disabled={candidatos.length === 0}
+              className="gap-1.5 shrink-0 text-xs h-8"
+              title="Descargar ranking en formato CSV"
+            >
+              <Download className="size-3.5" />
+              Exportar CSV
+            </Button>
           </div>
 
           {candidatos.length === 0 ? (

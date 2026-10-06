@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Briefcase, Users, Plus, ArrowUpRight } from "lucide-react"
+import { Briefcase, Users, Plus, ArrowUpRight, TrendingUp } from "lucide-react"
 
 import { PageHeader } from "@/components/haire/page-header"
 import { buttonVariants } from "@/components/ui/button"
@@ -46,6 +46,7 @@ export default function DashboardPage() {
 
   const totalVacantesActivas = vacantes.filter((v) => v.estado === "activa").length
   const totalPostulantes = vacantes.reduce((acc, v) => acc + v.candidatos, 0)
+  const promedioCandidatos = vacantes.length ? Math.round(totalPostulantes / vacantes.length) : 0
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -66,7 +67,7 @@ export default function DashboardPage() {
       </PageHeader>
 
       {/* Tarjetas resumen */}
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <ResumenCard
           cargando={cargando}
           icon={<Briefcase className="size-5" />}
@@ -87,6 +88,13 @@ export default function DashboardPage() {
           label="Vacantes cerradas"
           value={vacantes.filter((v) => v.estado === "cerrada").length}
           hint="Procesos finalizados"
+        />
+        <ResumenCard
+          cargando={cargando}
+          icon={<TrendingUp className="size-5" />}
+          label="Promedio por vacante"
+          value={promedioCandidatos}
+          hint="Candidatos / puesto"
         />
       </div>
 
