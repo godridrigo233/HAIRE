@@ -10,8 +10,16 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
 from app.deps import get_current_user
-from app.models import Curriculum, Usuario, Vacante, VacanteRequerimiento
-from app.schemas import CandidatoOut, RequerimientoOut, VacanteCreate, VacanteOut, PaginatedVacantes
+from app.models import Curriculum, Habilidad, Usuario, Vacante, VacanteRequerimiento
+from app.schemas import (
+    CandidatoOut,
+    PaginatedCandidatos,
+    PaginatedVacantes,
+    RequerimientoOut,
+    VacanteCreate,
+    VacanteOut,
+    VacanteUpdate,
+)
 from app.services.candidatos_service import listar_candidatos_de_vacante
 from app.services.skills_service import obtener_o_crear_habilidad
 
@@ -100,6 +108,57 @@ def actualizar_vacante(
     return _a_salida(vacante, _contar_candidatos(db, id_vacante))
 
 
+@router.put("/{id_vacante}", response_model=VacanteOut)
+def editar_vacante(
+    id_vacante: UUID,
+    datos: VacanteUpdate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+) -> VacanteOut:
+    """Edita los datos de una vacante. Solo el dueño puede modificarla."""
+    vacante = db.scalar(
+        select(Vacante)
+        .options(
+            selectinload(Vacante.requerimientos).selectinload(
+                VacanteRequerimiento.habilidad
+            )
+        )
+        .where(Vacante.id_vacante == id_vacante)
+    )
+    if vacante is None:
+        raise HTTPException(status_code=404, detail="Vacante no encontrada")
+    if vacante.id_usuario != usuario.id_usuario:
+        raise HTTPException(status_code=403, detail="No tienes permiso para modificar esta vacante")
+
+    if datos.titulo_puesto is not None:
+        vacante.titulo_puesto = datos.titulo_puesto
+    if datos.descripcion is not None:
+        vacante.descripcion = datos.descripcion
+    if datos.experiencia_minima_anios is not None:
+        vacante.experiencia_minima_anios = datos.experiencia_minima_anios
+
+    # Si se envían requerimientos, reemplazar
+    if datos.requerimientos is not None:
+        db.query(VacanteRequerimiento).filter(
+            VacanteRequerimiento.id_vacante == id_vacante
+        ).delete(synchronize_session=False)
+        db.flush()
+
+        for req in datos.requerimientos:
+            habilidad = obtener_o_crear_habilidad(db, req.nombre)
+            db.add(
+                VacanteRequerimiento(
+                    id_vacante=vacante.id_vacante,
+                    id_habilidad=habilidad.id_habilidad,
+                    es_obligatoria=req.es_obligatoria,
+                )
+            )
+
+    db.commit()
+    db.refresh(vacante)
+    return _a_salida(vacante, _contar_candidatos(db, id_vacante))
+
+
 @router.get("", response_model=PaginatedVacantes)
 def listar_vacantes(
     q: Optional[str] = Query(None),
@@ -154,12 +213,20 @@ def obtener_vacante(
     return _a_salida(vacante, _contar_candidatos(db, id_vacante))
 
 
-@router.get("/{id_vacante}/candidatos", response_model=List[CandidatoOut])
+@router.get("/{id_vacante}/candidatos", response_model=PaginatedCandidatos)
 def candidatos_de_vacante(
     id_vacante: UUID,
     q: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    min_porcentaje: Optional[float] = Query(None, ge=0, le=100),
+    es_recomendado: Optional[bool] = Query(None),
+    etapa: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_current_user),
-) -> List[CandidatoOut]:
-    """Ranking de candidatos evaluados de la vacante, ordenados por % desc."""
-    return listar_candidatos_de_vacante(db, id_vacante, q)
+) -> PaginatedCandidatos:
+    """Ranking de candidatos evaluados con filtros y paginación."""
+    items, total = listar_candidatos_de_vacante(
+        db, id_vacante, q, page, page_size, min_porcentaje, es_recomendado, etapa
+    )
+    return PaginatedCandidatos(total=total, page=page, page_size=page_size, items=items)

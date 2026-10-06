@@ -14,6 +14,7 @@ import {
   FileText,
   ExternalLink,
   Download,
+  ChevronDown,
 } from "lucide-react"
 
 import { PageHeader } from "@/components/haire/page-header"
@@ -32,6 +33,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { ETAPAS_CONFIG } from "@/components/haire/ranking-view"
 import { ScoreCircle } from "@/components/haire/score-circle"
 import { cn } from "@/lib/utils"
 import { nivelColor, type Candidato, type Vacante } from "@/lib/mock-data"
@@ -78,6 +86,18 @@ export default function CandidatoDetallePage({
     ? Math.round((opcionalesCumplidas.length / opcionales.length) * 100)
     : 100
 
+  const handleCambiarEtapa = async (nuevaEtapa: string) => {
+    try {
+      await api.cambiarEtapaCandidato(id, nuevaEtapa)
+      setCandidato((prev) => (prev ? { ...prev, etapa: nuevaEtapa } : null))
+    } catch (err) {
+      console.error("Error cambiando etapa:", err)
+    }
+  }
+
+  const etapaKey = candidato.etapa || "nuevo"
+  const etapaInfo = ETAPAS_CONFIG[etapaKey] || ETAPAS_CONFIG.nuevo
+
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div className="flex items-center justify-between">
@@ -102,12 +122,36 @@ export default function CandidatoDetallePage({
       </div>
 
       <PageHeader title={candidato.nombre}>
-        {candidato.esRecomendado && (
-          <Badge className="bg-brand text-brand-foreground shadow-sm">
-            <Trophy className="size-3" />
-            Recomendado por IA
-          </Badge>
-        )}
+        <div className="flex items-center gap-2">
+          {candidato.esRecomendado && (
+            <Badge className="bg-brand text-brand-foreground shadow-sm">
+              <Trophy className="size-3" />
+              Recomendado por IA
+            </Badge>
+          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger className="flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors hover:opacity-80">
+              <span className={cn("size-2 rounded-full", etapaInfo.color)} />
+              Etapa: {etapaInfo.label}
+              <ChevronDown className="size-3.5 opacity-60" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {Object.entries(ETAPAS_CONFIG).map(([k, cfg]) => (
+                <DropdownMenuItem
+                  key={k}
+                  onClick={() => handleCambiarEtapa(k)}
+                  className={cn(
+                    "text-xs cursor-pointer",
+                    k === etapaKey && "font-bold",
+                  )}
+                >
+                  <span className={cn("size-2 rounded-full mr-2", cfg.color)} />
+                  {cfg.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </PageHeader>
 
       <div className="grid gap-6 lg:grid-cols-[320px_1fr]">

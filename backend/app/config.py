@@ -38,9 +38,6 @@ class Settings(BaseSettings):
     jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
     jwt_expire_minutes: int = Field(default=480, alias="JWT_EXPIRE_MINUTES")
 
-    # Auth interina
-    auth_demo_password: str = Field(default="haire2026", alias="AUTH_DEMO_PASSWORD")
-
     # CORS: string separado por comas (se parsea en `cors_origins`).
     cors_origins_raw: str = Field(
         default="http://localhost:3000,https://haire-tau.vercel.app",

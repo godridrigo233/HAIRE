@@ -39,6 +39,7 @@ export interface Candidato {
   // Habilidades detectadas que NO eran requisito
   adicionales: string[]
   pdfUrl?: string
+  etapa?: string
 }
 
 export const usuarioActual = {
@@ -48,12 +49,6 @@ export const usuarioActual = {
   rol: "reclutador" as const,
   iniciales: "RG",
   empresa: "Haire Tech S.A.C.",
-}
-
-// Credenciales de la demo (login simulado)
-export const CREDENCIALES_DEMO = {
-  correo: "rodrigo@haire.com",
-  password: "haire2026",
 }
 
 export const vacantes: Vacante[] = [

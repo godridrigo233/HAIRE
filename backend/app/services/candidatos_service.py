@@ -63,6 +63,10 @@ def _armar_candidato(
         p for p in [postulante.nombres, postulante.apellidos] if p and p != "(sin apellido)"
     ).strip()
 
+    etapa_val = getattr(evaluacion, "estado_aprobacion", "nuevo") or "nuevo"
+    if etapa_val == "pendiente":
+        etapa_val = "nuevo"
+
     return CandidatoOut(
         id=evaluacion.id_evaluacion,
         id_vacante=evaluacion.id_vacante,
@@ -73,6 +77,7 @@ def _armar_candidato(
         porcentaje=float(evaluacion.porcentaje_compatibilidad or 0),
         es_recomendado=evaluacion.es_recomendado,
         justificacion=evaluacion.justificacion_ia,
+        etapa=etapa_val,
         requeridas=requeridas,
         adicionales=adicionales,
         pdf_url=curriculum.archivo_pdf_url,
@@ -81,26 +86,53 @@ def _armar_candidato(
 
 from sqlalchemy import func, or_
 
-def listar_candidatos_de_vacante(db: Session, id_vacante: uuid.UUID, q: Optional[str] = None) -> List[CandidatoOut]:
-    """Candidatos evaluados de una vacante, ordenados por % descendente."""
+def listar_candidatos_de_vacante(
+    db: Session,
+    id_vacante: uuid.UUID,
+    q: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 20,
+    min_porcentaje: Optional[float] = None,
+    es_recomendado: Optional[bool] = None,
+    etapa: Optional[str] = None,
+) -> tuple[List[CandidatoOut], int]:
+    """Candidatos evaluados de una vacante, con filtros y paginación.
+
+    Retorna (lista_candidatos, total).
+    """
     query = (
         select(Evaluacion, Curriculum, Postulante)
         .join(Curriculum, Curriculum.id_curriculum == Evaluacion.id_curriculum)
         .join(Postulante, Postulante.id_postulante == Curriculum.id_postulante)
         .where(Evaluacion.id_vacante == id_vacante)
     )
-    
+
     if q:
         query = query.where(
             or_(
                 Postulante.nombres.ilike(f"%{q}%"),
                 Postulante.apellidos.ilike(f"%{q}%"),
-                func.concat(Postulante.nombres, ' ', Postulante.apellidos).ilike(f"%{q}%")
+                func.concat(Postulante.nombres, " ", Postulante.apellidos).ilike(f"%{q}%"),
             )
         )
-        
-    filas = db.execute(query.order_by(Evaluacion.porcentaje_compatibilidad.desc())).all()
-    return [_armar_candidato(db, ev, cur, post) for ev, cur, post in filas]
+    if min_porcentaje is not None:
+        query = query.where(Evaluacion.porcentaje_compatibilidad >= min_porcentaje)
+    if es_recomendado is not None:
+        query = query.where(Evaluacion.es_recomendado == es_recomendado)
+    if etapa is not None:
+        if etapa == "nuevo":
+            query = query.where(or_(Evaluacion.estado_aprobacion == "nuevo", Evaluacion.estado_aprobacion == "pendiente"))
+        else:
+            query = query.where(Evaluacion.estado_aprobacion == etapa)
+
+    total = db.scalar(select(func.count()).select_from(query.subquery())) or 0
+
+    filas = db.execute(
+        query.order_by(Evaluacion.porcentaje_compatibilidad.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    ).all()
+    return [_armar_candidato(db, ev, cur, post) for ev, cur, post in filas], total
 
 
 def obtener_candidato(db: Session, id_evaluacion: uuid.UUID) -> Optional[CandidatoOut]:

@@ -9,7 +9,6 @@ import { Logo } from "@/components/haire/logo"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { CREDENCIALES_DEMO } from "@/lib/mock-data"
 import { api, ApiError } from "@/lib/api"
 import { guardarSesion } from "@/lib/auth"
 
@@ -137,11 +136,6 @@ export default function LoginPage() {
               {cargando ? "Iniciando sesión..." : "Iniciar sesión"}
             </Button>
           </form>
-
-          <div className="mt-6 rounded-lg border border-border bg-muted/50 px-3 py-2.5 text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">Demo:</span>{" "}
-            {CREDENCIALES_DEMO.correo} · {CREDENCIALES_DEMO.password}
-          </div>
 
           <div className="mt-8 text-center text-sm text-muted-foreground">
             ¿No tienes cuenta?{" "}

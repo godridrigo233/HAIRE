@@ -51,6 +51,14 @@ class VacanteCreate(BaseModel):
     requerimientos: List[RequerimientoIn] = Field(default_factory=list)
 
 
+class VacanteUpdate(BaseModel):
+    """Campos editables de una vacante."""
+    titulo_puesto: Optional[str] = None
+    descripcion: Optional[str] = None
+    experiencia_minima_anios: Optional[int] = None
+    requerimientos: Optional[List[RequerimientoIn]] = None
+
+
 class RequerimientoOut(BaseModel):
     id_habilidad: UUID
     nombre: str
@@ -159,6 +167,7 @@ class EvaluacionOut(BaseModel):
     es_recomendado: bool
     justificacion_ia: Optional[str] = None
     estado_aprobacion: str
+    etapa: str = "nuevo"
     fecha_evaluacion: Optional[datetime] = None
 
 
@@ -167,6 +176,12 @@ class AnalizarResponse(BaseModel):
     habilidades_detectadas: List[HabilidadDetectada]
     modelo_usado: str
     tiempo_respuesta_ms: int
+
+
+class AnalizarAsyncResponse(BaseModel):
+    id_curriculum: UUID
+    estado: str = "procesando"
+    mensaje: str = "El análisis se está procesando en segundo plano"
 
 
 # --------------------------- Candidatos ---------------------------
@@ -188,9 +203,17 @@ class CandidatoOut(BaseModel):
     porcentaje: float
     es_recomendado: bool
     justificacion: Optional[str] = None
+    etapa: str = "nuevo"
     requeridas: List[HabilidadEvaluadaOut] = Field(default_factory=list)
     adicionales: List[str] = Field(default_factory=list)
     pdf_url: Optional[str] = None
+
+
+class PaginatedCandidatos(BaseModel):
+    total: int
+    page: int
+    page_size: int
+    items: List[CandidatoOut]
 
 
 # ---------------------------- Scoring ----------------------------

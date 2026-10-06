@@ -3,13 +3,13 @@
 import { use, useEffect, useState } from "react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, Upload, Trophy, Briefcase, Lock, LockOpen, Loader2 } from "lucide-react"
+import { ArrowLeft, Upload, Trophy, Briefcase, Lock, LockOpen, Loader2, Pencil } from "lucide-react"
 
 import { PageHeader } from "@/components/haire/page-header"
 import { CvUploader } from "@/components/haire/cv-uploader"
 import { RankingView } from "@/components/haire/ranking-view"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Card,
@@ -97,6 +97,13 @@ export default function VacanteDetallePage({
             )}
             {vacante.estado === "activa" ? "Cerrar vacante" : "Reabrir vacante"}
           </Button>
+          <Link
+            href={`/vacantes/${id}/editar`}
+            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "flex items-center gap-1.5")}
+          >
+            <Pencil className="size-4" />
+            Editar
+          </Link>
         </div>
       </PageHeader>
 

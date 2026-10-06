@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Usuario
 from app.schemas import LoginRequest, LoginResponse, RegisterRequest, UsuarioOut
-from app.security import crear_access_token, hashear_password, verificar_password, verificar_password_demo
+from app.security import crear_access_token, hashear_password, verificar_password
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -28,13 +28,9 @@ def login(datos: LoginRequest, db: Session = Depends(get_db)) -> LoginResponse:
     if usuario is None:
         raise credenciales_invalidas
         
-    password_valida = False
-    if usuario.password_hash:
-        password_valida = verificar_password(datos.password, usuario.password_hash)
-    else:
-        password_valida = verificar_password_demo(datos.password)
-        
-    if not password_valida:
+    if not usuario.password_hash:
+        raise credenciales_invalidas
+    if not verificar_password(datos.password, usuario.password_hash):
         raise credenciales_invalidas
 
     token = crear_access_token(

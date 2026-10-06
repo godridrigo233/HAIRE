@@ -87,6 +87,7 @@ interface CandidatoApi {
   requeridas: { nombre: string; cumple: boolean; obligatoria: boolean }[]
   adicionales: string[]
   pdf_url?: string | null
+  etapa?: string
 }
 
 function mapVacante(v: VacanteApi): Vacante {
@@ -115,6 +116,7 @@ function mapCandidato(c: CandidatoApi): Candidato {
     porcentaje: Math.round(c.porcentaje),
     esRecomendado: c.es_recomendado,
     justificacion: c.justificacion ?? "",
+    etapa: c.etapa ?? "nuevo",
     requeridas: c.requeridas,
     adicionales: c.adicionales,
     pdfUrl: c.pdf_url ?? undefined,
@@ -166,10 +168,30 @@ export const api = {
     )
   },
 
-  async getCandidatosDeVacante(idVacante: string, q?: string): Promise<Candidato[]> {
-    const suffix = q ? `?q=${encodeURIComponent(q)}` : ''
+  async getCandidatosDeVacante(
+    idVacante: string,
+    params?: { q?: string; page?: number; page_size?: number; min_porcentaje?: number; es_recomendado?: boolean; etapa?: string } | string,
+  ): Promise<{ total: number; items: Candidato[] }> {
+    const qs = new URLSearchParams()
+    if (typeof params === 'string') {
+      if (params) qs.set('q', params)
+    } else if (params) {
+      if (params.q) qs.set('q', params.q)
+      if (params.page) qs.set('page', String(params.page))
+      if (params.page_size) qs.set('page_size', String(params.page_size))
+      if (params.min_porcentaje !== undefined) qs.set('min_porcentaje', String(params.min_porcentaje))
+      if (params.es_recomendado !== undefined) qs.set('es_recomendado', String(params.es_recomendado))
+      if (params.etapa) qs.set('etapa', params.etapa)
+    }
+    const suffix = qs.toString() ? `?${qs.toString()}` : ''
     const data = await request<any>(`/vacantes/${idVacante}/candidatos${suffix}`)
-    return (Array.isArray(data) ? data : []).map(mapCandidato)
+    if (Array.isArray(data)) {
+      return { total: data.length, items: data.map(mapCandidato) }
+    }
+    if (data && Array.isArray(data.items)) {
+      return { total: data.total ?? data.items.length, items: data.items.map(mapCandidato) }
+    }
+    return { total: 0, items: [] }
   },
 
   async getCandidato(idEvaluacion: string): Promise<Candidato> {
@@ -191,6 +213,45 @@ export const api = {
   // Analiza un curriculum ya subido (llamada a Groq en el backend).
   async analizarCv(idCurriculum: string): Promise<void> {
     await request(`/cv/${idCurriculum}/analizar`, { method: "POST" })
+  },
+
+  async estadoAnalisis(idCurriculum: string): Promise<{
+    id_curriculum: string
+    estado: string
+    id_evaluacion?: string
+    porcentaje?: number
+    es_recomendado?: boolean
+    justificacion?: string
+    etapa?: string
+    mensaje?: string
+  }> {
+    return request(`/cv/${idCurriculum}/estado`)
+  },
+
+  async editarVacante(
+    id: string,
+    payload: {
+      titulo_puesto?: string
+      descripcion?: string
+      experiencia_minima_anios?: number
+      requerimientos?: { nombre: string; es_obligatoria: boolean }[]
+    },
+  ): Promise<Vacante> {
+    return mapVacante(
+      await request<VacanteApi>(`/vacantes/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      }),
+    )
+  },
+
+  async cambiarEtapaCandidato(idEvaluacion: string, etapa: string): Promise<Candidato> {
+    return mapCandidato(
+      await request<CandidatoApi>(`/candidatos/${idEvaluacion}/etapa`, {
+        method: "PATCH",
+        body: JSON.stringify({ etapa }),
+      }),
+    )
   },
 
   async patchVacante(id: string, estado_activo: boolean): Promise<Vacante> {

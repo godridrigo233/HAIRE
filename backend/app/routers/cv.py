@@ -8,10 +8,12 @@ from uuid import UUID
 
 from fastapi import (
     APIRouter,
+    BackgroundTasks,
     Depends,
     File,
     Form,
     HTTPException,
+    Query,
     UploadFile,
     status,
 )
@@ -19,7 +21,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 import logging
 
-from app.database import get_db
+from app.database import SessionLocal, get_db
 from app.deps import get_current_user
 from app.models import (
     Curriculum,
@@ -33,6 +35,7 @@ from app.models import (
     VacanteRequerimiento,
 )
 from app.schemas import (
+    AnalizarAsyncResponse,
     AnalizarResponse,
     CurriculumOut,
     EvaluacionOut,
@@ -140,13 +143,7 @@ def upload_cv(
     )
 
 
-@router.post("/{id_curriculum}/analizar", response_model=AnalizarResponse)
-def analizar_cv(
-    id_curriculum: UUID,
-    db: Session = Depends(get_db),
-    usuario: Usuario = Depends(get_current_user),
-) -> AnalizarResponse:
-    """Manda el texto del CV + requisitos a Groq, valida el JSON y persiste todo."""
+def _ejecutar_analisis_cv(id_curriculum: UUID, db: Session) -> AnalizarResponse:
     curriculum = db.get(Curriculum, id_curriculum)
     if curriculum is None:
         raise HTTPException(status_code=404, detail="Curriculum no encontrado")
@@ -159,12 +156,10 @@ def analizar_cv(
     if vacante is None:
         raise HTTPException(status_code=404, detail="Vacante asociada no encontrada")
 
-    # Requisitos de la vacante, separados por obligatoriedad
     reqs = db.execute(
         select(VacanteRequerimiento.es_obligatoria, VacanteRequerimiento.id_habilidad)
         .where(VacanteRequerimiento.id_vacante == vacante.id_vacante)
     ).all()
-
 
     nombres_por_id = dict(
         db.execute(select(Habilidad.id_habilidad, Habilidad.nombre)).all()
@@ -172,7 +167,6 @@ def analizar_cv(
     obligatorias = [nombres_por_id[h] for ob, h in reqs if ob and h in nombres_por_id]
     opcionales = [nombres_por_id[h] for ob, h in reqs if not ob and h in nombres_por_id]
 
-    # Llamada al LLM (Groq)
     try:
         resultado = groq_service.analizar_cv(
             texto_cv=curriculum.texto_plano_extraido,
@@ -191,19 +185,16 @@ def analizar_cv(
         curriculum.estado_lectura = "descartado"
         db.commit()
         mensaje_error = analisis.justificacion_descarte or "El documento subido no es un Currículum Vitae válido."
-        # --- ELIMINACIÓN AUTOMÁTICA ---
         try:
             storage_service.eliminar_cv(curriculum.archivo_pdf_url)
             logger.debug(f"Archivo basura eliminado: {curriculum.archivo_pdf_url}")
         except Exception as e:
             logger.debug(f"Error al intentar borrar archivo basura: {e}")
-        # -------------------------------
         raise HTTPException(
             status_code=400,
             detail=f"DOCUMENTO_INVALIDO: {mensaje_error}"
         )
 
-    # Completar datos del postulante con lo que extrajo la IA del CV
     postulante = db.get(Postulante, curriculum.id_postulante)
     if postulante is not None:
         if analisis.nombre_candidato and (
@@ -217,19 +208,17 @@ def analizar_cv(
         if analisis.telefono and not postulante.telefono:
             postulante.telefono = analisis.telefono
 
-    # Persistir evaluación
     evaluacion = Evaluacion(
         id_curriculum=curriculum.id_curriculum,
         id_vacante=vacante.id_vacante,
         porcentaje_compatibilidad=Decimal(str(analisis.porcentaje_compatibilidad)),
         es_recomendado=analisis.es_recomendado,
         justificacion_ia=analisis.justificacion,
-        estado_aprobacion="pendiente",
+        estado_aprobacion="nuevo",
     )
     db.add(evaluacion)
     db.flush()
 
-    # Persistir habilidades detectadas (get-or-create en el catálogo)
     for hab in analisis.habilidades_detectadas:
         habilidad = obtener_o_crear_habilidad(db, hab.nombre)
         db.add(
@@ -240,7 +229,6 @@ def analizar_cv(
             )
         )
 
-    # Traza de la llamada al LLM
     db.add(
         PromptLog(
             id_evaluacion=evaluacion.id_evaluacion,
@@ -265,6 +253,81 @@ def analizar_cv(
         modelo_usado=resultado.modelo_usado,
         tiempo_respuesta_ms=resultado.tiempo_respuesta_ms,
     )
+
+
+def _background_analizar_cv(id_curriculum: UUID):
+    """Ejecuta el análisis en background con su propia sesión de BD."""
+    db = SessionLocal()
+    try:
+        _ejecutar_analisis_cv(id_curriculum, db)
+    except Exception as exc:
+        logger.error(f"Error procesando CV {id_curriculum} en background: {exc}")
+    finally:
+        db.close()
+
+
+@router.post("/{id_curriculum}/analizar")
+def analizar_cv(
+    id_curriculum: UUID,
+    background_tasks: BackgroundTasks,
+    async_mode: bool = Query(False),
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+):
+    """Manda el texto del CV + requisitos a Groq.
+
+    Si async_mode=True, encola la tarea con BackgroundTasks y responde 202 de inmediato.
+    Si async_mode=False (default), ejecuta síncronamente y retorna AnalizarResponse.
+    """
+    curriculum = db.get(Curriculum, id_curriculum)
+    if curriculum is None:
+        raise HTTPException(status_code=404, detail="Curriculum no encontrado")
+
+    if async_mode:
+        curriculum.estado_lectura = "procesando"
+        db.commit()
+        background_tasks.add_task(_background_analizar_cv, id_curriculum)
+        return AnalizarAsyncResponse(
+            id_curriculum=id_curriculum,
+            estado="procesando",
+            mensaje="El análisis se está procesando en segundo plano",
+        )
+
+    return _ejecutar_analisis_cv(id_curriculum, db)
+
+
+@router.get("/{id_curriculum}/estado")
+def estado_analisis(
+    id_curriculum: UUID,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user),
+) -> dict:
+    """Consulta el estado del procesamiento y evaluación de un CV."""
+    curriculum = db.get(Curriculum, id_curriculum)
+    if curriculum is None:
+        raise HTTPException(status_code=404, detail="Curriculum no encontrado")
+
+    resultado = {
+        "id_curriculum": str(id_curriculum),
+        "estado": curriculum.estado_lectura,
+    }
+
+    if curriculum.estado_lectura == "procesado":
+        evaluacion = db.scalar(
+            select(Evaluacion).where(Evaluacion.id_curriculum == id_curriculum)
+        )
+        if evaluacion:
+            resultado["id_evaluacion"] = str(evaluacion.id_evaluacion)
+            resultado["porcentaje"] = float(evaluacion.porcentaje_compatibilidad or 0)
+            resultado["es_recomendado"] = evaluacion.es_recomendado
+            resultado["justificacion"] = evaluacion.justificacion_ia
+            resultado["etapa"] = evaluacion.estado_aprobacion or "nuevo"
+    elif curriculum.estado_lectura == "descartado":
+        resultado["mensaje"] = "El documento no es un Currículum Vitae válido"
+    elif curriculum.estado_lectura == "error_lectura":
+        resultado["mensaje"] = "Ocurrió un error al analizar el documento"
+
+    return resultado
 
 
 @router.get("/{id_curriculum}/scoring", response_model=ScoringResponse)

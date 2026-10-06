@@ -1,7 +1,6 @@
 """Utilidades de autenticación: emisión y verificación de JWT."""
 from __future__ import annotations
 
-import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
@@ -31,13 +30,6 @@ def decodificar_access_token(token: str) -> dict[str, Any]:
         token, settings.jwt_secret, algorithms=[settings.jwt_algorithm]
     )
 
-
-def verificar_password_demo(password: str) -> bool:
-    """Compara la password contra la password de demo en tiempo constante.
-
-    Interino: la tabla `usuarios` no tiene columna de password (ver README).
-    """
-    return secrets.compare_digest(password, settings.auth_demo_password)
 
 def hashear_password(password: str) -> str:
     """Genera un hash bcrypt de la contraseña."""

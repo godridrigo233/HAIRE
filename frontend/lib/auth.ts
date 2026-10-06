@@ -15,6 +15,7 @@ export function guardarSesion(token: string, usuario: UsuarioSesion) {
   if (typeof window === "undefined") return
   localStorage.setItem(TOKEN_KEY, token)
   localStorage.setItem(USER_KEY, JSON.stringify(usuario))
+  document.cookie = `${TOKEN_KEY}=${token}; path=/; max-age=${8 * 3600}; SameSite=Lax`
 }
 
 export function getToken(): string | null {
@@ -37,6 +38,7 @@ export function cerrarSesion() {
   if (typeof window === "undefined") return
   localStorage.removeItem(TOKEN_KEY)
   localStorage.removeItem(USER_KEY)
+  document.cookie = `${TOKEN_KEY}=; path=/; max-age=0; SameSite=Lax`
 }
 
 export function iniciales(u: UsuarioSesion): string {
