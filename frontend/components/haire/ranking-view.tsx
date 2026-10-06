@@ -12,6 +12,9 @@ import {
   ChevronDown,
   Filter,
   Download,
+  ArrowLeftRight,
+  Check,
+  X,
 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -28,6 +31,13 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Card, CardContent } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -87,6 +97,25 @@ export function RankingView({
   const [etapaFiltro, setEtapaFiltro] = useState<string>("")
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
+  const [seleccionadosParaComparar, setSeleccionadosParaComparar] = useState<string[]>([])
+  const [modalCompararAbierto, setModalCompararAbierto] = useState(false)
+
+  const toggleSeleccion = (candidatoId: string) => {
+    setSeleccionadosParaComparar((prev) => {
+      if (prev.includes(candidatoId)) {
+        return prev.filter((id) => id !== candidatoId)
+      }
+      if (prev.length >= 3) {
+        toast("info", "Puedes comparar un máximo de 3 candidatos a la vez")
+        return prev
+      }
+      return [...prev, candidatoId]
+    })
+  }
+
+  const candidatosAComparar = candidatos.filter((c) =>
+    seleccionadosParaComparar.includes(c.id),
+  )
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
@@ -358,17 +387,30 @@ export function RankingView({
               ))}
             </div>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={exportarCSV}
-              disabled={candidatos.length === 0}
-              className="gap-1.5 shrink-0 text-xs h-8"
-              title="Descargar ranking en formato CSV"
-            >
-              <Download className="size-3.5" />
-              Exportar CSV
-            </Button>
+            <div className="flex items-center gap-2 shrink-0">
+              {seleccionadosParaComparar.length >= 2 && (
+                <Button
+                  size="sm"
+                  onClick={() => setModalCompararAbierto(true)}
+                  className="gap-1.5 text-xs h-8 bg-brand text-brand-foreground hover:bg-brand/90 animate-in fade-in"
+                >
+                  <ArrowLeftRight className="size-3.5" />
+                  Comparar ({seleccionadosParaComparar.length})
+                </Button>
+              )}
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={exportarCSV}
+                disabled={candidatos.length === 0}
+                className="gap-1.5 text-xs h-8"
+                title="Descargar ranking en formato CSV"
+              >
+                <Download className="size-3.5" />
+                Exportar CSV
+              </Button>
+            </div>
           </div>
 
           {candidatos.length === 0 ? (
@@ -385,6 +427,9 @@ export function RankingView({
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-8">
+                        <span className="sr-only">Seleccionar</span>
+                      </TableHead>
                       <TableHead>Candidato</TableHead>
                       <TableHead>Compatibilidad</TableHead>
                       <TableHead>Etapa del Pipeline</TableHead>
@@ -405,7 +450,22 @@ export function RankingView({
                       const etapaInfo = ETAPAS_CONFIG[etapaKey] || ETAPAS_CONFIG.nuevo
 
                       return (
-                        <TableRow key={c.id}>
+                        <TableRow
+                          key={c.id}
+                          className={cn(
+                            seleccionadosParaComparar.includes(c.id) &&
+                              "bg-brand/5 dark:bg-brand/10",
+                          )}
+                        >
+                          <TableCell className="w-8 pr-0">
+                            <input
+                              type="checkbox"
+                              checked={seleccionadosParaComparar.includes(c.id)}
+                              onChange={() => toggleSeleccion(c.id)}
+                              className="size-4 rounded border-border accent-brand cursor-pointer"
+                              title="Seleccionar para comparar"
+                            />
+                          </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground tabular-nums">
@@ -528,6 +588,130 @@ export function RankingView({
           )}
         </CardContent>
       </Card>
+
+      {/* Modal Comparador Side-by-Side */}
+      <Dialog open={modalCompararAbierto} onOpenChange={setModalCompararAbierto}>
+        <DialogContent className="max-w-5xl h-[85vh] flex flex-col p-6">
+          <DialogHeader className="border-b pb-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle className="flex items-center gap-2 text-base font-semibold">
+                  <ArrowLeftRight className="size-5 text-brand" />
+                  Comparativa Lado a Lado de Candidatos
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                  Analizando {candidatosAComparar.length} postulantes evaluados para este puesto.
+                </DialogDescription>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSeleccionadosParaComparar([])}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                Limpiar selección
+              </Button>
+            </div>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto pt-4">
+            <div
+              className={cn(
+                "grid gap-4",
+                candidatosAComparar.length === 2
+                  ? "grid-cols-1 md:grid-cols-2"
+                  : "grid-cols-1 md:grid-cols-3",
+              )}
+            >
+              {candidatosAComparar.map((c) => {
+                const etapaInfo = ETAPAS_CONFIG[c.etapa || "nuevo"] || ETAPAS_CONFIG.nuevo
+                const reqCumplidas = c.requeridas.filter((r) => r.cumple).length
+
+                return (
+                  <div
+                    key={c.id}
+                    className="flex flex-col rounded-xl border border-border bg-card p-4 shadow-xs"
+                  >
+                    {/* Header de la tarjeta comparativa */}
+                    <div className="border-b pb-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <ScoreBadge score={c.porcentaje} className="font-bold text-xs" />
+                        <span
+                          className={cn(
+                            "text-[10px] font-semibold px-2 py-0.5 rounded-full border",
+                            etapaInfo.color,
+                          )}
+                        >
+                          {etapaInfo.label}
+                        </span>
+                      </div>
+                      <h4 className="font-bold text-foreground text-sm line-clamp-1">
+                        {c.nombre}
+                      </h4>
+                      {c.esRecomendado && (
+                        <Badge className="bg-brand text-brand-foreground text-[10px] gap-1 shadow-none">
+                          <Sparkles className="size-3" /> Recomendado IA
+                        </Badge>
+                      )}
+                    </div>
+
+                    {/* Justificación IA */}
+                    <div className="py-3 border-b space-y-1">
+                      <p className="text-[11px] font-semibold text-muted-foreground uppercase">
+                        Evaluación IA
+                      </p>
+                      <p className="text-xs text-foreground/90 leading-relaxed italic line-clamp-4">
+                        &quot;{c.justificacion || "Evaluación completada."}&quot;
+                      </p>
+                    </div>
+
+                    {/* Requerimientos */}
+                    <div className="py-3 border-b space-y-2 flex-1">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[11px] font-semibold text-muted-foreground uppercase">
+                          Habilidades Clave ({reqCumplidas}/{c.requeridas.length})
+                        </p>
+                      </div>
+                      <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                        {c.requeridas.map((r) => (
+                          <div
+                            key={r.nombre}
+                            className={cn(
+                              "flex items-center justify-between text-xs p-1.5 rounded-md",
+                              r.cumple
+                                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                                : "bg-muted text-muted-foreground",
+                            )}
+                          >
+                            <span className="truncate pr-1">
+                              {r.nombre} {r.obligatoria && "*"}
+                            </span>
+                            {r.cumple ? (
+                              <Check className="size-3.5 text-emerald-500 shrink-0" />
+                            ) : (
+                              <X className="size-3.5 text-rose-500 shrink-0" />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Botón a perfil */}
+                    <div className="pt-3">
+                      <Button asChild size="sm" variant="outline" className="w-full text-xs gap-1.5">
+                        <Link href={`/candidatos/${c.id}`} target="_blank">
+                          Ver ficha completa
+                          <ChevronRight className="size-3.5" />
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

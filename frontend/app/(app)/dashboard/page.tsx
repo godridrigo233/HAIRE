@@ -39,6 +39,16 @@ export default function DashboardPage() {
   const [topCandidatos, setTopCandidatos] = useState<Array<Candidato & { vacanteTitulo: string }>>([])
   const [nombre, setNombre] = useState("")
 
+  const [pipelineDistribucion, setPipelineDistribucion] = useState<Record<string, number>>({
+    nuevo: 0,
+    en_revision: 0,
+    entrevista: 0,
+    oferta: 0,
+    contratado: 0,
+  })
+  const [tasaRecomendados, setTasaRecomendados] = useState(0)
+  const [totalEnPipeline, setTotalEnPipeline] = useState(0)
+
   useEffect(() => {
     setNombre(getUsuario()?.nombres ?? "")
     api
@@ -50,20 +60,44 @@ export default function DashboardPage() {
         try {
           const activasConPostulantes = data.items
             .filter((v) => v.candidatos > 0)
-            .slice(0, 4)
+            .slice(0, 5)
 
           if (activasConPostulantes.length > 0) {
             const promesas = activasConPostulantes.map(async (v) => {
               const res = await api.getCandidatosDeVacante(v.id, {
                 page: 1,
-                page_size: 5,
+                page_size: 20,
               })
               return res.items.map((c) => ({ ...c, vacanteTitulo: v.titulo }))
             })
             const listas = await Promise.all(promesas)
             const todos = listas.flat()
-            todos.sort((a, b) => b.porcentaje - a.porcentaje)
-            setTopCandidatos(todos.slice(0, 6))
+
+            // Distribución de etapas
+            const distrib: Record<string, number> = {
+              nuevo: 0,
+              en_revision: 0,
+              entrevista: 0,
+              oferta: 0,
+              contratado: 0,
+            }
+            let recCount = 0
+            todos.forEach((c) => {
+              const k = c.etapa || "nuevo"
+              if (distrib[k] !== undefined) distrib[k]++
+              if (c.esRecomendado) recCount++
+            })
+
+            setPipelineDistribucion(distrib)
+            setTotalEnPipeline(todos.length)
+            setTasaRecomendados(
+              todos.length ? Math.round((recCount / todos.length) * 100) : 0,
+            )
+
+            // Top candidatos ordenados
+            const copia = [...todos]
+            copia.sort((a, b) => b.porcentaje - a.porcentaje)
+            setTopCandidatos(copia.slice(0, 6))
           }
         } catch (err) {
           console.error("Error cargando candidatos top:", err)
@@ -131,6 +165,100 @@ export default function DashboardPage() {
           hint="Candidatos / puesto"
         />
       </div>
+
+      {/* Embudo del Pipeline de Selección */}
+      {totalEnPipeline > 0 && (
+        <Card className="mb-8 border-border">
+          <CardHeader className="pb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <TrendingUp className="size-4 text-brand" />
+                  Embudo de Selección (Pipeline Funnel)
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Progresión de {totalEnPipeline} candidatos analizados por etapas de contratación.
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-xs bg-brand/5 border-brand/20 text-brand">
+                  <Sparkles className="size-3 mr-1" /> {tasaRecomendados}% Recomendados IA
+                </Badge>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              {[
+                {
+                  label: "Nuevos",
+                  count: pipelineDistribucion.nuevo || 0,
+                  color: "bg-slate-500",
+                  barColor: "bg-slate-400",
+                },
+                {
+                  label: "En Revisión",
+                  count: pipelineDistribucion.en_revision || 0,
+                  color: "bg-blue-500",
+                  barColor: "bg-blue-500",
+                },
+                {
+                  label: "Entrevista",
+                  count: pipelineDistribucion.entrevista || 0,
+                  color: "bg-purple-500",
+                  barColor: "bg-purple-500",
+                },
+                {
+                  label: "Oferta",
+                  count: pipelineDistribucion.oferta || 0,
+                  color: "bg-amber-500",
+                  barColor: "bg-amber-500",
+                },
+                {
+                  label: "Contratados",
+                  count: pipelineDistribucion.contratado || 0,
+                  color: "bg-emerald-500",
+                  barColor: "bg-emerald-500",
+                },
+              ].map((etapa) => {
+                const pct = totalEnPipeline
+                  ? Math.round((etapa.count / totalEnPipeline) * 100)
+                  : 0
+                return (
+                  <div
+                    key={etapa.label}
+                    className="rounded-lg border border-border/80 bg-muted/20 p-3 space-y-2"
+                  >
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-semibold text-foreground flex items-center gap-1.5">
+                        <span className={cn("size-2 rounded-full", etapa.color)} />
+                        {etapa.label}
+                      </span>
+                      <span className="font-bold tabular-nums text-foreground">
+                        {etapa.count}
+                      </span>
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                      <div
+                        className={cn(
+                          "h-full rounded-full transition-all duration-500",
+                          etapa.barColor,
+                        )}
+                        style={{
+                          width: `${Math.max(pct, etapa.count > 0 ? 8 : 0)}%`,
+                        }}
+                      />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground text-right tabular-nums">
+                      {pct}% del total
+                    </p>
+                  </div>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Tabla de vacantes */}
       <Card>

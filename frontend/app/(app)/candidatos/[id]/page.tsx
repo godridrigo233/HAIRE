@@ -15,11 +15,15 @@ import {
   ExternalLink,
   Download,
   ChevronDown,
+  Star,
+  StickyNote,
+  Save,
 } from "lucide-react"
 
 import { PageHeader } from "@/components/haire/page-header"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Dialog,
@@ -58,6 +62,36 @@ export default function CandidatoDetallePage({
   const [cargando, setCargando] = useState(true)
   const [noExiste, setNoExiste] = useState(false)
   const [pdfModalOpen, setPdfModalOpen] = useState(false)
+  const [esFavorito, setEsFavorito] = useState(false)
+  const [notaReclutador, setNotaReclutador] = useState("")
+  const [guardandoNota, setGuardandoNota] = useState(false)
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setEsFavorito(localStorage.getItem(`haire_fav_${id}`) === "true")
+      setNotaReclutador(localStorage.getItem(`haire_nota_${id}`) || "")
+    }
+  }, [id])
+
+  const toggleFavorito = () => {
+    const next = !esFavorito
+    setEsFavorito(next)
+    if (typeof window !== "undefined") {
+      localStorage.setItem(`haire_fav_${id}`, String(next))
+    }
+    toast("success", next ? "Candidato guardado en favoritos ⭐" : "Candidato removido de favoritos")
+  }
+
+  const handleGuardarNota = () => {
+    setGuardandoNota(true)
+    if (typeof window !== "undefined") {
+      localStorage.setItem(`haire_nota_${id}`, notaReclutador)
+    }
+    setTimeout(() => {
+      setGuardandoNota(false)
+      toast("success", "Nota del reclutador guardada con éxito")
+    }, 150)
+  }
 
   useEffect(() => {
     api
@@ -113,17 +147,35 @@ export default function CandidatoDetallePage({
           <ArrowLeft className="size-4" />
           Volver al ranking
         </Link>
-        {candidato.pdfUrl && (
+        <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setPdfModalOpen(true)}
-            className="gap-2 border-brand/40 text-foreground hover:bg-brand/10"
+            onClick={toggleFavorito}
+            className={cn(
+              "gap-1.5 text-xs transition-colors",
+              esFavorito
+                ? "border-amber-400/80 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-semibold"
+                : "text-muted-foreground hover:text-foreground",
+            )}
           >
-            <FileText className="size-4 text-brand" />
-            Ver Documento CV
+            <Star
+              className={cn("size-3.5", esFavorito ? "fill-amber-400 text-amber-400" : "")}
+            />
+            {esFavorito ? "Favorito" : "Marcar favorito"}
           </Button>
-        )}
+          {candidato.pdfUrl && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPdfModalOpen(true)}
+              className="gap-2 border-brand/40 text-foreground hover:bg-brand/10"
+            >
+              <FileText className="size-4 text-brand" />
+              Ver Documento CV
+            </Button>
+          )}
+        </div>
       </div>
 
       <PageHeader title={candidato.nombre}>
@@ -337,6 +389,38 @@ export default function CandidatoDetallePage({
               <p className="text-pretty text-sm leading-relaxed text-muted-foreground">
                 {candidato.justificacion}
               </p>
+            </CardContent>
+          </Card>
+
+          {/* Notas privadas del reclutador */}
+          <Card className="glass-card shadow-sm border-dashed">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <StickyNote className="size-4 text-amber-500" />
+                  Notas del Reclutador (Privado)
+                </CardTitle>
+                <span className="text-[11px] text-muted-foreground">Solo visible para ti</span>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Textarea
+                placeholder="Escribe comentarios de la entrevista, impresiones personales, preguntas de seguimiento..."
+                value={notaReclutador}
+                onChange={(e) => setNotaReclutador(e.target.value)}
+                className="min-h-[100px] text-xs leading-relaxed resize-y"
+              />
+              <div className="flex justify-end">
+                <Button
+                  size="sm"
+                  onClick={handleGuardarNota}
+                  disabled={guardandoNota}
+                  className="gap-1.5 text-xs bg-primary text-primary-foreground"
+                >
+                  <Save className="size-3.5" />
+                  Guardar Nota
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>

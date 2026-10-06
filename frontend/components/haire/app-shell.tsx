@@ -73,6 +73,43 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [usuario, setUsuario] = useState<UsuarioSesion | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [isDark, setIsDark] = useState(false)
+  const [notificaciones, setNotificaciones] = useState<
+    Array<{ id: string; titulo: string; mensaje: string; tiempo: string; leida: boolean }>
+  >([
+    {
+      id: "notif-1",
+      titulo: "Análisis IA Completado",
+      mensaje: "Se procesaron exitosamente los CVs de tu vacante activa.",
+      tiempo: "Hace 10 min",
+      leida: false,
+    },
+    {
+      id: "notif-2",
+      titulo: "Candidato en Entrevista",
+      mensaje: "Un candidato destacado fue promovido a etapa de entrevista.",
+      tiempo: "Hace 45 min",
+      leida: false,
+    },
+    {
+      id: "notif-3",
+      titulo: "Compatibilidad Sobresaliente",
+      mensaje: "La IA identificó un postulante con afinidad superior al 90%.",
+      tiempo: "Hace 2 horas",
+      leida: true,
+    },
+  ])
+
+  const totalNoLeidas = notificaciones.filter((n) => !n.leida).length
+
+  const marcarTodasLeidas = () => {
+    setNotificaciones((prev) => prev.map((n) => ({ ...n, leida: true })))
+    toast("info", "Todas las notificaciones marcadas como leídas")
+  }
+
+  const limpiarNotificaciones = () => {
+    setNotificaciones([])
+    toast("info", "Bandeja de notificaciones limpiada")
+  }
 
   // Estados del formulario de perfil
   const [nombres, setNombres] = useState("")
@@ -290,6 +327,77 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Moon className="h-4 w-4 text-muted-foreground" />
               )}
             </Button>
+
+            {/* Campana de Notificaciones */}
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                className="relative inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="Ver notificaciones"
+              >
+                <Bell className="size-4" />
+                {totalNoLeidas > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground animate-pulse">
+                    {totalNoLeidas}
+                  </span>
+                )}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-80 p-0 shadow-lg">
+                <div className="flex items-center justify-between border-b px-4 py-2.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-semibold text-foreground">Notificaciones</span>
+                    {totalNoLeidas > 0 && (
+                      <span className="rounded-full bg-brand/10 px-1.5 py-0.5 text-[10px] font-semibold text-brand">
+                        {totalNoLeidas} nuevas
+                      </span>
+                    )}
+                  </div>
+                  {totalNoLeidas > 0 && (
+                    <button
+                      type="button"
+                      onClick={marcarTodasLeidas}
+                      className="text-[11px] text-muted-foreground hover:text-foreground font-medium transition-colors"
+                    >
+                      Marcar leídas
+                    </button>
+                  )}
+                </div>
+                <div className="max-h-72 overflow-y-auto divide-y divide-border/60">
+                  {notificaciones.length === 0 ? (
+                    <div className="p-6 text-center text-xs text-muted-foreground">
+                      No tienes notificaciones pendientes.
+                    </div>
+                  ) : (
+                    notificaciones.map((n) => (
+                      <div
+                        key={n.id}
+                        className={cn(
+                          "p-3 text-xs transition-colors hover:bg-muted/50",
+                          !n.leida && "bg-brand/5 dark:bg-brand/10",
+                        )}
+                      >
+                        <div className="flex items-start justify-between gap-1 mb-0.5">
+                          <p className="font-semibold text-foreground">{n.titulo}</p>
+                          <span className="text-[10px] text-muted-foreground shrink-0">{n.tiempo}</span>
+                        </div>
+                        <p className="text-muted-foreground text-[11px] leading-relaxed">{n.mensaje}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+                {notificaciones.length > 0 && (
+                  <div className="border-t p-2 text-center">
+                    <button
+                      type="button"
+                      onClick={limpiarNotificaciones}
+                      className="text-[11px] text-muted-foreground hover:text-destructive transition-colors font-medium"
+                    >
+                      Limpiar historial
+                    </button>
+                  </div>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <DropdownMenu>
               <DropdownMenuTrigger
                 className="flex items-center gap-2 rounded-lg px-1.5 py-1 outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
