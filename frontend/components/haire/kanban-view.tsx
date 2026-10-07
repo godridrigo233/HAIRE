@@ -179,7 +179,7 @@ export function KanbanView({
                         <CardContent className="p-3 space-y-2.5">
                           {/* Top: Score y acciones */}
                           <div className="flex items-start justify-between gap-1.5">
-                            <ScoreBadge score={c.porcentaje} className="text-[11px] font-semibold px-2 py-0.5" />
+                            <ScoreBadge porcentaje={c.porcentaje} className="text-[11px] font-semibold px-2 py-0.5" />
                             <DropdownMenu>
                               <DropdownMenuTrigger className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors">
                                 <MoreVertical className="size-3.5" />

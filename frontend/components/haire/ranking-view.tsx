@@ -635,7 +635,7 @@ export function RankingView({
                     {/* Header de la tarjeta comparativa */}
                     <div className="border-b pb-3 space-y-2">
                       <div className="flex items-center justify-between">
-                        <ScoreBadge score={c.porcentaje} className="font-bold text-xs" />
+                        <ScoreBadge porcentaje={c.porcentaje} className="font-bold text-xs" />
                         <span
                           className={cn(
                             "text-[10px] font-semibold px-2 py-0.5 rounded-full border",

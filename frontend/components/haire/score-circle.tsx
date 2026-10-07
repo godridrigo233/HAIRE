@@ -10,24 +10,27 @@ function scoreColor(score: number) {
 
 export function ScoreCircle({
   score,
+  porcentaje,
   size = 180,
   strokeWidth = 14,
 }: {
-  score: number
+  score?: number
+  porcentaje?: number
   size?: number
   strokeWidth?: number
 }) {
+  const valor = score ?? porcentaje ?? 0
   const radius = (size - strokeWidth) / 2
   const circumference = 2 * Math.PI * radius
-  const offset = circumference - (score / 100) * circumference
-  const color = scoreColor(score)
+  const offset = circumference - (valor / 100) * circumference
+  const color = scoreColor(valor)
 
   return (
     <div
       className="relative flex items-center justify-center group"
       style={{ width: size, height: size }}
       role="img"
-      aria-label={`Compatibilidad ${score}%`}
+      aria-label={`Compatibilidad ${valor}%`}
     >
       {/* Halo brillante difuso de fondo */}
       <div
@@ -62,7 +65,7 @@ export function ScoreCircle({
           className={cn("text-4xl font-extrabold tabular-nums tracking-tight")}
           style={{ color }}
         >
-          {score}%
+          {valor}%
         </span>
         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mt-0.5">
           Match IA

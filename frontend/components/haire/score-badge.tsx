@@ -3,12 +3,15 @@ import { nivelColor } from "@/lib/mock-data"
 
 export function ScoreBadge({
   porcentaje,
+  score,
   className,
 }: {
-  porcentaje: number
+  porcentaje?: number
+  score?: number
   className?: string
 }) {
-  const nivel = nivelColor(porcentaje)
+  const valor = porcentaje ?? score ?? 0
+  const nivel = nivelColor(valor)
 
   const estilos: Record<typeof nivel, string> = {
     success: "bg-success/15 text-success-foreground ring-success/30",
@@ -32,7 +35,7 @@ export function ScoreBadge({
         className,
       )}
     >
-      {porcentaje}%
+      {valor}%
     </span>
   )
 }

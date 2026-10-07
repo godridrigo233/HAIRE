@@ -361,7 +361,7 @@ export default function DashboardPage() {
                   >
                     <div>
                       <div className="flex items-center justify-between gap-2 mb-2">
-                        <ScoreBadge score={c.porcentaje} className="font-semibold text-xs" />
+                        <ScoreBadge porcentaje={c.porcentaje} className="font-semibold text-xs" />
                         <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full border", etapaInfo.color)}>
                           {etapaInfo.label}
                         </span>
