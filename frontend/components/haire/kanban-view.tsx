@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import {
   Search,
   Sparkles,
@@ -47,6 +48,7 @@ export function KanbanView({
   vacanteId: string
   onRefresh?: () => void
 }) {
+  const router = useRouter()
   const { toast } = useToast()
   const [candidatos, setCandidatos] = useState<Candidato[]>([])
   const [cargando, setCargando] = useState(true)
@@ -185,11 +187,12 @@ export function KanbanView({
                                 <MoreVertical className="size-3.5" />
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="text-xs w-44">
-                                <DropdownMenuItem asChild>
-                                  <Link href={`/candidatos/${c.id}`} className="gap-2 cursor-pointer">
-                                    <ExternalLink className="size-3.5" />
-                                    Ver perfil completo
-                                  </Link>
+                                <DropdownMenuItem
+                                  onClick={() => router.push(`/candidatos/${c.id}`)}
+                                  className="gap-2 cursor-pointer"
+                                >
+                                  <ExternalLink className="size-3.5" />
+                                  Ver perfil completo
                                 </DropdownMenuItem>
                                 <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                                   Mover etapa a:

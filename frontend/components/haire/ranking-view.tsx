@@ -715,12 +715,14 @@ export function RankingView({
 
                     {/* Botón a perfil */}
                     <div className="pt-3">
-                      <Button asChild size="sm" variant="outline" className="w-full text-xs gap-1.5">
-                        <Link href={`/candidatos/${c.id}`} target="_blank">
-                          Ver ficha completa
-                          <ChevronRight className="size-3.5" />
-                        </Link>
-                      </Button>
+                      <Link
+                        href={`/candidatos/${c.id}`}
+                        target="_blank"
+                        className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full text-xs gap-1.5")}
+                      >
+                        Ver ficha completa
+                        <ChevronRight className="size-3.5" />
+                      </Link>
                     </div>
                   </div>
                 )
