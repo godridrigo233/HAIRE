@@ -12,11 +12,18 @@ from app.schemas import (
     CambiarPasswordRequest,
     LoginRequest,
     LoginResponse,
+    RecuperarPasswordRequest,
     RegisterRequest,
+    ResetPasswordRequest,
     UsuarioOut,
     UsuarioUpdate,
 )
-from app.security import crear_access_token, hashear_password, verificar_password
+from app.security import (
+    crear_access_token,
+    decodificar_access_token,
+    hashear_password,
+    verificar_password,
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -124,3 +131,61 @@ def cambiar_password(
     usuario_actual.password_hash = hashear_password(datos.password_nueva)
     db.commit()
     return {"mensaje": "Contraseña actualizada exitosamente"}
+
+
+@router.post("/recuperar-password")
+def solicitar_recuperacion_password(
+    datos: RecuperarPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    """Genera un token seguro para restablecer contraseña. En producción se enviaría por email."""
+    correo_limpio = datos.correo.strip().lower()
+    usuario = db.scalar(
+        select(Usuario).where(func.lower(Usuario.correo) == correo_limpio)
+    )
+    # Por seguridad no revelamos si el usuario existe o no
+    token_reset = None
+    if usuario:
+        token_reset = crear_access_token(
+            subject=usuario.id_usuario,
+            extra={"proposito": "reset_password", "correo": usuario.correo},
+        )
+
+    return {
+        "mensaje": "Si el correo está registrado en HAIRE, recibirás instrucciones para restablecer tu contraseña.",
+        "token_reset": token_reset,  # Disponible para entorno de desarrollo y pruebas
+    }
+
+
+@router.post("/reset-password")
+def ejecutar_reset_password(
+    datos: ResetPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    """Restablece la contraseña utilizando el token firmado de recuperación."""
+    try:
+        import uuid
+        payload = decodificar_access_token(datos.token)
+        if payload.get("proposito") != "reset_password":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Token no válido para restablecimiento de contraseña",
+            )
+        id_usuario = uuid.UUID(payload["sub"])
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El token de recuperación es inválido o ha expirado",
+        )
+
+    usuario = db.scalar(select(Usuario).where(Usuario.id_usuario == id_usuario))
+    if not usuario:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Usuario no encontrado",
+        )
+
+    usuario.password_hash = hashear_password(datos.password_nueva)
+    db.commit()
+    return {"mensaje": "Contraseña restablecida exitosamente. Ya puedes iniciar sesión."}
+

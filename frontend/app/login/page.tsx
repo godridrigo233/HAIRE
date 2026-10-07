@@ -20,6 +20,57 @@ export default function LoginPage() {
   const [mensajeError, setMensajeError] = useState("")
   const [cargando, setCargando] = useState(false)
 
+  // Estados de recuperación de contraseña
+  const [modalRecuperar, setModalRecuperar] = useState(false)
+  const [correoRecuperar, setCorreoRecuperar] = useState("")
+  const [passwordNueva, setPasswordNueva] = useState("")
+  const [cargandoRecuperar, setCargandoRecuperar] = useState(false)
+  const [recuperarExito, setRecuperarExito] = useState(false)
+  const [recuperarError, setRecuperarError] = useState("")
+  const [tokenResetRecibido, setTokenResetRecibido] = useState<string | null>(null)
+
+  async function handleSolicitarRecuperacion(e: FormEvent) {
+    e.preventDefault()
+    setRecuperarError("")
+    setCargandoRecuperar(true)
+    try {
+      const resp = await api.recuperarPassword(correoRecuperar.trim())
+      setRecuperarExito(true)
+      if (resp.token_reset) {
+        setTokenResetRecibido(resp.token_reset)
+      }
+    } catch (err) {
+      setRecuperarError(
+        err instanceof ApiError ? err.message : "Error al procesar la solicitud de recuperación.",
+      )
+    } finally {
+      setCargandoRecuperar(false)
+    }
+  }
+
+  async function handleEjecutarReset(e: FormEvent) {
+    e.preventDefault()
+    if (!tokenResetRecibido) return
+    setRecuperarError("")
+    setCargandoRecuperar(true)
+    try {
+      await api.resetPassword({
+        token: tokenResetRecibido,
+        passwordNueva: passwordNueva,
+      })
+      alert("¡Contraseña restablecida con éxito! Ya puedes iniciar sesión.")
+      setModalRecuperar(false)
+      setPassword(passwordNueva)
+      setCorreo(correoRecuperar)
+    } catch (err) {
+      setRecuperarError(
+        err instanceof ApiError ? err.message : "Error al restablecer la contraseña.",
+      )
+    } finally {
+      setCargandoRecuperar(false)
+    }
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError(false)
@@ -117,7 +168,20 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Contraseña</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Contraseña</Label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModalRecuperar(true)
+                    setRecuperarExito(false)
+                    setRecuperarError("")
+                  }}
+                  className="text-xs font-medium text-brand hover:underline"
+                >
+                  ¿Olvidaste tu contraseña?
+                </button>
+              </div>
               <Input
                 id="password"
                 type="password"
@@ -157,6 +221,129 @@ export default function LoginPage() {
           </p>
         </div>
       </div>
+
+      {/* Modal de Recuperación de Contraseña */}
+      {modalRecuperar && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-foreground">
+                Recuperar contraseña
+              </h3>
+              <button
+                type="button"
+                onClick={() => setModalRecuperar(false)}
+                className="text-muted-foreground hover:text-foreground text-sm font-bold p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            {recuperarError && (
+              <div className="rounded-lg bg-destructive/10 p-3 text-xs text-destructive">
+                {recuperarError}
+              </div>
+            )}
+
+            {!recuperarExito ? (
+              <form onSubmit={handleSolicitarRecuperacion} className="space-y-4">
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Ingresa tu correo electrónico registrado. Te enviaremos las instrucciones para restablecer tu acceso.
+                </p>
+                <div className="space-y-1.5">
+                  <Label htmlFor="correo-recuperar" className="text-xs">Correo electrónico</Label>
+                  <Input
+                    id="correo-recuperar"
+                    type="email"
+                    placeholder="ejemplo@empresa.com"
+                    value={correoRecuperar}
+                    onChange={(e) => setCorreoRecuperar(e.target.value)}
+                    required
+                    disabled={cargandoRecuperar}
+                  />
+                </div>
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setModalRecuperar(false)}
+                    disabled={cargandoRecuperar}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    className="bg-brand text-brand-foreground hover:bg-brand/90"
+                    disabled={cargandoRecuperar}
+                  >
+                    {cargandoRecuperar ? (
+                      <>
+                        <Loader2 className="size-3.5 animate-spin mr-1.5" />
+                        Enviando...
+                      </>
+                    ) : (
+                      "Enviar instrucciones"
+                    )}
+                  </Button>
+                </div>
+              </form>
+            ) : tokenResetRecibido ? (
+              <form onSubmit={handleEjecutarReset} className="space-y-4">
+                <div className="rounded-lg bg-emerald-500/10 p-3 text-xs text-emerald-600 dark:text-emerald-400">
+                  Código de restablecimiento verificado. Ingresa tu nueva contraseña para continuar.
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="password-nueva" className="text-xs">Nueva contraseña</Label>
+                  <Input
+                    id="password-nueva"
+                    type="password"
+                    placeholder="Mínimo 6 caracteres"
+                    value={passwordNueva}
+                    onChange={(e) => setPasswordNueva(e.target.value)}
+                    required
+                    minLength={6}
+                    disabled={cargandoRecuperar}
+                  />
+                </div>
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <Button
+                    type="submit"
+                    size="sm"
+                    className="bg-brand text-brand-foreground hover:bg-brand/90"
+                    disabled={cargandoRecuperar}
+                  >
+                    {cargandoRecuperar ? (
+                      <>
+                        <Loader2 className="size-3.5 animate-spin mr-1.5" />
+                        Actualizando...
+                      </>
+                    ) : (
+                      "Guardar nueva contraseña"
+                    )}
+                  </Button>
+                </div>
+              </form>
+            ) : (
+              <div className="space-y-4">
+                <div className="rounded-lg bg-emerald-500/10 p-3 text-xs text-emerald-600 dark:text-emerald-400">
+                  Si tu correo existe en el sistema, hemos enviado las instrucciones para restablecer tu contraseña.
+                </div>
+                <Button
+                  type="button"
+                  className="w-full"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setModalRecuperar(false)}
+                >
+                  Entendido
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

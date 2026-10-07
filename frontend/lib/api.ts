@@ -290,4 +290,30 @@ export const api = {
       }),
     })
   },
+
+  async recuperarPassword(correo: string): Promise<{ mensaje: string; token_reset?: string }> {
+    return await request<{ mensaje: string; token_reset?: string }>(
+      '/auth/recuperar-password',
+      {
+        method: 'POST',
+        body: JSON.stringify({ correo }),
+      },
+      false,
+    )
+  },
+
+  async resetPassword(datos: { token: string; passwordNueva: string }): Promise<{ mensaje: string }> {
+    return await request<{ mensaje: string }>(
+      '/auth/reset-password',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          token: datos.token,
+          password_nueva: datos.passwordNueva,
+        }),
+      },
+      false,
+    )
+  },
 }
+

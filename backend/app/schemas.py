@@ -48,6 +48,15 @@ class CambiarPasswordRequest(BaseModel):
     password_nueva: str = Field(..., min_length=6)
 
 
+class RecuperarPasswordRequest(BaseModel):
+    correo: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    password_nueva: str = Field(..., min_length=6)
+
+
 # --------------------------- Vacantes ---------------------------
 class RequerimientoIn(BaseModel):
     nombre: str = Field(..., description="Nombre de la habilidad requerida")

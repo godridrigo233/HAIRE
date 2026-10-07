@@ -58,6 +58,21 @@ class ApiIntegrationTests(unittest.TestCase):
         resp = self.client.get(f"/cv/{fake_id}/estado")
         self.assertIn(resp.status_code, (401, 403, 404))
 
+    def test_recuperar_password_endpoint(self):
+        """Verifica que el endpoint de recuperar password acepte email."""
+        resp = self.client.post("/auth/recuperar-password", json={"correo": "noexiste@haire.app"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("mensaje", resp.json())
+
+    def test_reset_password_invalido_token(self):
+        """Verifica que un token invalido sea rechazado."""
+        resp = self.client.post(
+            "/auth/reset-password",
+            json={"token": "token-falso-invalido", "password_nueva": "nueva1234"},
+        )
+        self.assertEqual(resp.status_code, 400)
+
 
 if __name__ == "__main__":
     unittest.main()
+
