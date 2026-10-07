@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import {
   Sparkles,
@@ -13,6 +14,8 @@ import {
   BarChart3,
   FileText,
   Users,
+  Sun,
+  Moon,
 } from "lucide-react"
 
 import { Logo } from "@/components/haire/logo"
@@ -22,6 +25,31 @@ import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 
 export default function LandingPage() {
+  const [isDark, setIsDark] = useState(false)
+
+  useEffect(() => {
+    const saved = localStorage.getItem("haire_theme")
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches
+    const shouldBeDark = saved === "dark" || (!saved && prefersDark)
+    setIsDark(shouldBeDark)
+    if (shouldBeDark) {
+      document.documentElement.classList.add("dark")
+    } else {
+      document.documentElement.classList.remove("dark")
+    }
+  }, [])
+
+  const toggleTheme = () => {
+    const next = !isDark
+    setIsDark(next)
+    if (next) {
+      document.documentElement.classList.add("dark")
+      localStorage.setItem("haire_theme", "dark")
+    } else {
+      document.documentElement.classList.remove("dark")
+      localStorage.setItem("haire_theme", "light")
+    }
+  }
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col selection:bg-brand/20">
       {/* Barra de Navegación Superior */}
@@ -43,7 +71,21 @@ export default function LandingPage() {
             </a>
           </nav>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleTheme}
+              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              title={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+              aria-label="Alternar tema claro/oscuro"
+            >
+              {isDark ? (
+                <Sun className="h-4 w-4 text-amber-400" />
+              ) : (
+                <Moon className="h-4 w-4 text-muted-foreground" />
+              )}
+            </Button>
             <Link
               href="/login"
               className={cn(

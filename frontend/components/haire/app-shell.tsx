@@ -114,8 +114,16 @@ export function AppShell({ children }: { children: ReactNode }) {
   // Estados del formulario de perfil
   const [nombres, setNombres] = useState("")
   const [apellidos, setApellidos] = useState("")
+  const [empresa, setEmpresa] = useState("HAIRE Talent")
   const [guardandoPerfil, setGuardandoPerfil] = useState(false)
   const [errorPerfil, setErrorPerfil] = useState("")
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const emp = localStorage.getItem("haire_empresa")
+      if (emp) setEmpresa(emp)
+    }
+  }, [])
 
   // Estados del formulario de contraseña
   const [passActual, setPassActual] = useState("")
@@ -128,6 +136,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (settingsOpen && usuario) {
       setNombres(usuario.nombres || "")
       setApellidos(usuario.apellidos || "")
+      const emp = localStorage.getItem("haire_empresa")
+      if (emp) setEmpresa(emp)
       setErrorPerfil("")
       setPassActual("")
       setPassNueva("")
@@ -162,7 +172,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             }
           : null,
       )
-      toast("success", "Perfil actualizado con éxito")
+      if (empresa.trim()) {
+        localStorage.setItem("haire_empresa", empresa.trim())
+      }
+      toast("success", "Perfil y datos de empresa actualizados con éxito")
       setSettingsOpen(false)
     } catch (err: any) {
       setErrorPerfil(err?.message || "Error al actualizar perfil")
@@ -412,18 +425,23 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <p className="text-sm font-medium text-foreground">
                     {nombreCompleto}
                   </p>
-                  <p className="text-xs text-muted-foreground capitalize">
-                    {usuario.rol}
+                  <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                    <span className="font-semibold text-brand">{empresa}</span>
+                    <span>·</span>
+                    <span className="capitalize">{usuario.rol || "Reclutador"}</span>
                   </p>
                 </div>
                 <ChevronDown className="size-4 text-muted-foreground" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>
-                  <div className="leading-tight">
+                  <div className="leading-tight space-y-0.5">
                     <p className="text-sm font-medium">{nombreCompleto}</p>
                     <p className="text-xs font-normal text-muted-foreground">
                       {usuario.correo}
+                    </p>
+                    <p className="text-[11px] font-semibold text-brand pt-0.5">
+                      🏢 {empresa}
                     </p>
                   </div>
                 </DropdownMenuLabel>
@@ -536,6 +554,18 @@ export function AppShell({ children }: { children: ReactNode }) {
                   placeholder="Tus apellidos"
                   required
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="perfil-empresa">Empresa / Organización</Label>
+                <Input
+                  id="perfil-empresa"
+                  value={empresa}
+                  onChange={(e) => setEmpresa(e.target.value)}
+                  placeholder="Ej. Acme Corp o Mi Empresa"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Identificador corporativo que se reflejará en reportes, métricas y exportaciones.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="perfil-correo">Correo Electrónico</Label>

@@ -114,22 +114,44 @@ export default function NuevaVacantePage() {
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="titulo">Título del puesto</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="titulo">Título del puesto</Label>
+              {titulo.trim().length > 0 && titulo.trim().length < 4 && (
+                <span className="text-[11px] text-destructive">
+                  Mínimo 4 caracteres requeridos
+                </span>
+              )}
+              {titulo.trim().length >= 4 && (
+                <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+                  ✓ Título válido
+                </span>
+              )}
+            </div>
             <Input
               id="titulo"
               placeholder="Ej: Desarrollador Frontend Senior"
               value={titulo}
               onChange={(e) => setTitulo(e.target.value)}
+              className={cn(
+                titulo.trim().length > 0 && titulo.trim().length < 4
+                  ? "border-destructive/60 focus-visible:ring-destructive/30"
+                  : "",
+              )}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="descripcion">
-              Descripción{" "}
-              <span className="font-normal text-muted-foreground">
-                (opcional)
+            <div className="flex items-center justify-between">
+              <Label htmlFor="descripcion">
+                Descripción{" "}
+                <span className="font-normal text-muted-foreground">
+                  (opcional)
+                </span>
+              </Label>
+              <span className="text-[11px] text-muted-foreground">
+                {descripcion.length} caracteres
               </span>
-            </Label>
+            </div>
             <Textarea
               id="descripcion"
               rows={4}
@@ -203,6 +225,12 @@ export default function NuevaVacantePage() {
                   </li>
                 ))}
               </ul>
+            )}
+
+            {skills.length > 0 && !skills.some((s) => s.obligatoria) && (
+              <p className="text-[11px] text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-md p-2">
+                💡 Consejo: Te recomendamos marcar al menos una habilidad como obligatoria para que el cálculo de Match Score de la IA sea más preciso.
+              </p>
             )}
           </div>
 

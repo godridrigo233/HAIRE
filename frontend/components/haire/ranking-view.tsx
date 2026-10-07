@@ -184,6 +184,7 @@ export function RankingView({
 
   const exportarCSV = () => {
     if (!candidatos.length) return
+    const empresa = (typeof window !== "undefined" && localStorage.getItem("haire_empresa")) || "HAIRE Talent"
     const headers = [
       "Nombre",
       "Email",
@@ -205,6 +206,8 @@ export function RankingView({
 
     const csvContent =
       "data:text/csv;charset=utf-8,\uFEFF" +
+      `"Reporte de Seleccion HAIRE - Organizacion: ${empresa}"\n` +
+      `"Fecha de Generacion: ${new Date().toLocaleDateString('es-ES')}"\n\n` +
       [headers.join(","), ...rows.map((e) => e.join(","))].join("\n")
 
     const encodedUri = encodeURI(csvContent)
@@ -214,7 +217,7 @@ export function RankingView({
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
-    toast("success", "Reporte CSV descargado con éxito")
+    toast("success", `Reporte CSV generado para "${empresa}" descargado con éxito`)
   }
 
   const recomendado = candidatos.find((c) => c.esRecomendado) ?? candidatos[0]

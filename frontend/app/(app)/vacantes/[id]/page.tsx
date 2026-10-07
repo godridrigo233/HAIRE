@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from "react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, Upload, Trophy, Briefcase, Lock, LockOpen, Loader2, Pencil, Columns3, History } from "lucide-react"
+import { ArrowLeft, Upload, Trophy, Briefcase, Lock, LockOpen, Loader2, Pencil, Columns3, History, AlertTriangle } from "lucide-react"
 
 import { PageHeader } from "@/components/haire/page-header"
 import { CvUploader } from "@/components/haire/cv-uploader"
@@ -19,6 +19,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import { formatearFecha, type Vacante } from "@/lib/mock-data"
 import { api, ApiError } from "@/lib/api"
@@ -36,6 +44,7 @@ export default function VacanteDetallePage({
   const [cargando, setCargando] = useState(true)
   const [noExiste, setNoExiste] = useState(false)
   const [toggling, setToggling] = useState(false)
+  const [dialogoConfirmarOpen, setDialogoConfirmarOpen] = useState(false)
 
   useEffect(() => {
     api
@@ -86,7 +95,13 @@ export default function VacanteDetallePage({
           <Button
             variant="outline"
             size="sm"
-            onClick={toggleEstado}
+            onClick={() => {
+              if (vacante.estado === "activa") {
+                setDialogoConfirmarOpen(true)
+              } else {
+                toggleEstado()
+              }
+            }}
             disabled={toggling}
             className="flex items-center gap-1.5"
           >
@@ -207,6 +222,53 @@ export default function VacanteDetallePage({
           onCompletado={() => setTab("ranking")}
         />
       )}
+
+      {/* Diálogo de Confirmación para Cerrar Vacante */}
+      <Dialog open={dialogoConfirmarOpen} onOpenChange={setDialogoConfirmarOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                <AlertTriangle className="size-5" />
+              </div>
+              <div>
+                <DialogTitle>¿Confirmas el cierre de esta vacante?</DialogTitle>
+                <DialogDescription className="text-xs mt-1">
+                  Al cerrar "{vacante.titulo}", se suspenderá la recepción de nuevos candidatos y el proceso se marcará como concluido.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-xs text-amber-700 dark:text-amber-300">
+            Podrás reabrir la vacante en cualquier momento si decides reactivar la búsqueda de talento.
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setDialogoConfirmarOpen(false)}
+              disabled={toggling}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              onClick={() => {
+                setDialogoConfirmarOpen(false)
+                toggleEstado()
+              }}
+              disabled={toggling}
+              className="gap-1.5"
+            >
+              {toggling && <Loader2 className="size-3.5 animate-spin" />}
+              Sí, cerrar vacante
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
