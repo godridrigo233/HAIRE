@@ -15,6 +15,7 @@ import {
   ArrowLeftRight,
   Check,
   X,
+  Printer,
 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -99,6 +100,7 @@ export function RankingView({
   const [total, setTotal] = useState(0)
   const [seleccionadosParaComparar, setSeleccionadosParaComparar] = useState<string[]>([])
   const [modalCompararAbierto, setModalCompararAbierto] = useState(false)
+  const [modalReportePdf, setModalReportePdf] = useState(false)
 
   const toggleSeleccion = (candidatoId: string) => {
     setSeleccionadosParaComparar((prev) => {
@@ -413,6 +415,18 @@ export function RankingView({
                 <Download className="size-3.5" />
                 Exportar CSV
               </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setModalReportePdf(true)}
+                disabled={candidatos.length === 0}
+                className="gap-1.5 text-xs h-8"
+                title="Generar e imprimir reporte ejecutivo en PDF"
+              >
+                <Printer className="size-3.5" />
+                Reporte PDF
+              </Button>
             </div>
           </div>
 
@@ -712,6 +726,119 @@ export function RankingView({
                 )
               })}
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Reporte Ejecutivo Imprimible */}
+      <Dialog open={modalReportePdf} onOpenChange={setModalReportePdf}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-6 sm:p-8">
+          <div className="flex items-center justify-between border-b pb-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-brand">
+                  HAIRE ATS · Reporte Ejecutivo
+                </span>
+                <span className="text-xs text-muted-foreground">·</span>
+                <span className="text-xs font-medium text-muted-foreground">
+                  {(typeof window !== "undefined" && localStorage.getItem("haire_empresa")) || "HAIRE Talent"}
+                </span>
+              </div>
+              <h2 className="text-xl font-bold text-foreground mt-1">
+                Informe de Selección y Ranking de Candidatos
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Generado el {new Date().toLocaleDateString("es-ES", { year: "numeric", month: "long", day: "numeric" })}
+              </p>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => {
+                if (typeof window !== "undefined") window.print()
+              }}
+              className="gap-1.5 text-xs bg-brand text-brand-foreground hover:bg-brand/90 print:hidden"
+            >
+              <Printer className="size-3.5" />
+              Imprimir / PDF
+            </Button>
+          </div>
+
+          {/* Métricas clave del proceso */}
+          <div className="grid grid-cols-3 gap-3 my-4">
+            <div className="rounded-lg border bg-muted/20 p-3">
+              <p className="text-[11px] text-muted-foreground">Candidatos Evaluados</p>
+              <p className="text-lg font-bold text-foreground">{candidatos.length}</p>
+            </div>
+            <div className="rounded-lg border bg-muted/20 p-3">
+              <p className="text-[11px] text-muted-foreground">Mejor Compatibilidad</p>
+              <p className="text-lg font-bold text-brand">
+                {candidatos.length ? Math.max(...candidatos.map((c) => c.porcentaje)) : 0}%
+              </p>
+            </div>
+            <div className="rounded-lg border bg-muted/20 p-3">
+              <p className="text-[11px] text-muted-foreground">Recomendados por IA</p>
+              <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
+                {candidatos.filter((c) => c.esRecomendado).length} de {candidatos.length}
+              </p>
+            </div>
+          </div>
+
+          {/* Tabla de Candidatos */}
+          <div className="rounded-lg border overflow-hidden mt-4">
+            <table className="w-full text-xs">
+              <thead className="bg-muted text-muted-foreground font-semibold border-b">
+                <tr>
+                  <th className="p-2.5 text-left">Pos.</th>
+                  <th className="p-2.5 text-left">Candidato</th>
+                  <th className="p-2.5 text-center">Score</th>
+                  <th className="p-2.5 text-left">Etapa</th>
+                  <th className="p-2.5 text-left">Evaluación IA</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {candidatos.slice(0, 10).map((c, index) => (
+                  <tr key={c.id} className="hover:bg-muted/10">
+                    <td className="p-2.5 font-bold text-muted-foreground">{index + 1}</td>
+                    <td className="p-2.5 font-semibold text-foreground">
+                      {c.nombre}
+                      {c.correo && (
+                        <span className="block text-[10px] text-muted-foreground font-normal">{c.correo}</span>
+                      )}
+                    </td>
+                    <td className="p-2.5 text-center">
+                      <span
+                        className={cn(
+                          "inline-block font-bold px-1.5 py-0.5 rounded text-[11px]",
+                          c.porcentaje >= 80
+                            ? "bg-emerald-500/10 text-emerald-600"
+                            : c.porcentaje >= 60
+                              ? "bg-amber-500/10 text-amber-600"
+                              : "bg-slate-500/10 text-slate-600",
+                        )}
+                      >
+                        {c.porcentaje}%
+                      </span>
+                    </td>
+                    <td className="p-2.5 capitalize">{ETAPAS_CONFIG[c.etapa || "nuevo"]?.label || c.etapa}</td>
+                    <td className="p-2.5 text-muted-foreground max-w-xs truncate">
+                      {c.justificacion || "Evaluación completada."}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex justify-between items-center text-[11px] text-muted-foreground border-t pt-4 mt-6">
+            <span>HAIRE Talent Analytics · Documento confidencial para uso interno</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setModalReportePdf(false)}
+              className="text-xs print:hidden"
+            >
+              Cerrar
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
