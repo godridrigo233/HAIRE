@@ -10,6 +10,7 @@ from sqlalchemy import text
 
 from app.config import get_settings
 from app.database import engine
+from app.rate_limiter import RateLimitMiddleware
 from app.routers import auth, candidatos, cv, vacantes
 
 logging.basicConfig(level=logging.INFO)
@@ -41,6 +42,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(RateLimitMiddleware)
 
 app.include_router(auth.router)
 app.include_router(vacantes.router)

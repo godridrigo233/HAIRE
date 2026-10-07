@@ -3,12 +3,13 @@
 import { use, useEffect, useState } from "react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, Upload, Trophy, Briefcase, Lock, LockOpen, Loader2, Pencil, Columns3 } from "lucide-react"
+import { ArrowLeft, Upload, Trophy, Briefcase, Lock, LockOpen, Loader2, Pencil, Columns3, History } from "lucide-react"
 
 import { PageHeader } from "@/components/haire/page-header"
 import { CvUploader } from "@/components/haire/cv-uploader"
 import { RankingView } from "@/components/haire/ranking-view"
 import { KanbanView } from "@/components/haire/kanban-view"
+import { ActividadView } from "@/components/haire/actividad-view"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -22,7 +23,7 @@ import { cn } from "@/lib/utils"
 import { formatearFecha, type Vacante } from "@/lib/mock-data"
 import { api, ApiError } from "@/lib/api"
 
-type Tab = "ranking" | "kanban" | "cargar"
+type Tab = "ranking" | "kanban" | "cargar" | "actividad"
 
 export default function VacanteDetallePage({
   params,
@@ -185,12 +186,21 @@ export default function VacanteDetallePage({
         >
           Cargar CVs
         </TabButton>
+        <TabButton
+          active={tab === "actividad"}
+          onClick={() => setTab("actividad")}
+          icon={<History className="size-4" />}
+        >
+          Historial de actividad
+        </TabButton>
       </div>
 
       {tab === "ranking" ? (
         <RankingView vacanteId={vacante.id} cargando={cargando} />
       ) : tab === "kanban" ? (
         <KanbanView vacanteId={vacante.id} />
+      ) : tab === "actividad" ? (
+        <ActividadView vacante={vacante} />
       ) : (
         <CvUploader
           vacanteId={vacante.id}

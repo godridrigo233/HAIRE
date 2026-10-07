@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Briefcase, Users, Plus, ArrowUpRight, TrendingUp, Sparkles, Trophy, ChevronRight } from "lucide-react"
+import { Briefcase, Users, Plus, ArrowUpRight, TrendingUp, Sparkles, Trophy, ChevronRight, CheckCircle2, Circle, X } from "lucide-react"
 
 import { PageHeader } from "@/components/haire/page-header"
 import { buttonVariants, Button } from "@/components/ui/button"
@@ -48,6 +48,21 @@ export default function DashboardPage() {
   })
   const [tasaRecomendados, setTasaRecomendados] = useState(0)
   const [totalEnPipeline, setTotalEnPipeline] = useState(0)
+  const [onboardingOculto, setOnboardingOculto] = useState(false)
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const ocultado = localStorage.getItem("haire_onboarding_dismissed") === "true"
+      setOnboardingOculto(ocultado)
+    }
+  }, [])
+
+  const descartarOnboarding = () => {
+    setOnboardingOculto(true)
+    if (typeof window !== "undefined") {
+      localStorage.setItem("haire_onboarding_dismissed", "true")
+    }
+  }
 
   useEffect(() => {
     setNombre(getUsuario()?.nombres ?? "")
@@ -133,6 +148,169 @@ export default function DashboardPage() {
           Nueva Vacante
         </Link>
       </PageHeader>
+
+      {/* Guía de Primeros Pasos (Onboarding) */}
+      {!onboardingOculto && (
+        <Card className="mb-8 border-brand/20 bg-brand/[0.03] shadow-xs">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="flex size-7 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                  <Sparkles className="size-4" />
+                </div>
+                <div>
+                  <CardTitle className="text-sm font-semibold">
+                    Guía de Inicio Rápido en HAIRE
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Sigue estos tres pasos para poner en marcha tu selección inteligente de talento.
+                  </CardDescription>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                onClick={descartarOnboarding}
+                title="Ocultar guía"
+              >
+                <X className="size-3.5 mr-1" />
+                Ocultar
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="grid gap-3 sm:grid-cols-3">
+              {/* Paso 1 */}
+              <div
+                className={cn(
+                  "rounded-lg border p-3 transition-colors",
+                  vacantes.length > 0
+                    ? "border-emerald-500/30 bg-emerald-500/5"
+                    : "border-border bg-card",
+                )}
+              >
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Paso 1
+                  </span>
+                  {vacantes.length > 0 ? (
+                    <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                      <CheckCircle2 className="size-3.5" /> Listo
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
+                      <Circle className="size-3.5" /> Pendiente
+                    </span>
+                  )}
+                </div>
+                <h4 className="text-xs font-semibold text-foreground mb-1">
+                  Crea tu primera vacante
+                </h4>
+                <p className="text-[11px] text-muted-foreground mb-2.5">
+                  Define el puesto, las habilidades clave y la experiencia requerida.
+                </p>
+                {vacantes.length === 0 ? (
+                  <Link
+                    href="/vacantes/nueva"
+                    className="inline-flex items-center text-xs font-semibold text-brand hover:underline"
+                  >
+                    Crear vacante <ChevronRight className="size-3 ml-0.5" />
+                  </Link>
+                ) : (
+                  <span className="text-[11px] text-emerald-600 dark:text-emerald-400">
+                    {vacantes.length} vacante{vacantes.length > 1 ? "s" : ""} creada{vacantes.length > 1 ? "s" : ""}
+                  </span>
+                )}
+              </div>
+
+              {/* Paso 2 */}
+              <div
+                className={cn(
+                  "rounded-lg border p-3 transition-colors",
+                  totalPostulantes > 0
+                    ? "border-emerald-500/30 bg-emerald-500/5"
+                    : "border-border bg-card",
+                )}
+              >
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Paso 2
+                  </span>
+                  {totalPostulantes > 0 ? (
+                    <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                      <CheckCircle2 className="size-3.5" /> Listo
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
+                      <Circle className="size-3.5" /> Pendiente
+                    </span>
+                  )}
+                </div>
+                <h4 className="text-xs font-semibold text-foreground mb-1">
+                  Carga CVs en PDF
+                </h4>
+                <p className="text-[11px] text-muted-foreground mb-2.5">
+                  Arrastra los archivos en lote para que la IA extraiga y evalúe perfiles.
+                </p>
+                {totalPostulantes === 0 ? (
+                  <Link
+                    href={vacantes.length > 0 ? `/vacantes/${vacantes[0].id}` : "/vacantes"}
+                    className="inline-flex items-center text-xs font-semibold text-brand hover:underline"
+                  >
+                    Subir currículums <ChevronRight className="size-3 ml-0.5" />
+                  </Link>
+                ) : (
+                  <span className="text-[11px] text-emerald-600 dark:text-emerald-400">
+                    {totalPostulantes} CV{totalPostulantes > 1 ? "s" : ""} procesado{totalPostulantes > 1 ? "s" : ""}
+                  </span>
+                )}
+              </div>
+
+              {/* Paso 3 */}
+              <div
+                className={cn(
+                  "rounded-lg border p-3 transition-colors",
+                  totalEnPipeline > 0
+                    ? "border-emerald-500/30 bg-emerald-500/5"
+                    : "border-border bg-card",
+                )}
+              >
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Paso 3
+                  </span>
+                  {totalEnPipeline > 0 ? (
+                    <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                      <CheckCircle2 className="size-3.5" /> Listo
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
+                      <Circle className="size-3.5" /> Pendiente
+                    </span>
+                  )}
+                </div>
+                <h4 className="text-xs font-semibold text-foreground mb-1">
+                  Pipeline & Rankings
+                </h4>
+                <p className="text-[11px] text-muted-foreground mb-2.5">
+                  Revisa los Match Scores y mueve postulantes por las etapas de selección.
+                </p>
+                {vacantes.length > 0 ? (
+                  <Link
+                    href={`/vacantes/${vacantes[0].id}`}
+                    className="inline-flex items-center text-xs font-semibold text-brand hover:underline"
+                  >
+                    Ver ranking <ChevronRight className="size-3 ml-0.5" />
+                  </Link>
+                ) : (
+                  <span className="text-[11px] text-muted-foreground">Esperando vacante</span>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Tarjetas resumen */}
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
