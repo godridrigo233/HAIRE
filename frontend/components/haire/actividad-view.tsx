@@ -70,13 +70,16 @@ export function ActividadView({ vacante }: ActividadViewProps) {
 
         // 2. Eventos derivados de los candidatos
         res.items.forEach((c) => {
+          const fechaCandidato = c.fechaPostulacion || vacante.fechaCreacion
+          const textoResumen = c.resumenProfesional || c.justificacion
+
           // Evaluación por IA
           lista.push({
             id: `eval-${c.id}`,
-            fecha: c.fechaPostulacion || vacante.fechaCreacion,
+            fecha: fechaCandidato,
             titulo: `Evaluación IA completada: ${c.nombre}`,
-            descripcion: c.resumenProfesional
-              ? `${c.resumenProfesional.slice(0, 110)}...`
+            descripcion: textoResumen
+              ? `${textoResumen.slice(0, 110)}...`
               : `Perfil analizado con Match Score del ${c.porcentaje}%.`,
             tipo: "cv_procesado",
             icono: "sparkles",
@@ -92,7 +95,7 @@ export function ActividadView({ vacante }: ActividadViewProps) {
             const isFinal = c.etapa === "contratado" || c.etapa === "oferta"
             lista.push({
               id: `etapa-${c.id}-${c.etapa}`,
-              fecha: c.fechaPostulacion || vacante.fechaCreacion,
+              fecha: fechaCandidato,
               titulo: `${c.nombre} avanzó a ${etapaMeta.label}`,
               descripcion: isFinal
                 ? `El candidato alcanzó una etapa destacada en el pipeline con un porcentaje de afinidad de ${c.porcentaje}%.`

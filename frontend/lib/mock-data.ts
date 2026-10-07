@@ -40,6 +40,8 @@ export interface Candidato {
   adicionales: string[]
   pdfUrl?: string
   etapa?: string
+  fechaPostulacion?: string
+  resumenProfesional?: string
 }
 
 export const usuarioActual = {
