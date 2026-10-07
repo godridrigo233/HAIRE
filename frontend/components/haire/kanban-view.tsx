@@ -70,7 +70,7 @@ export function KanbanView({
 
   useEffect(() => {
     cargarCandidatos()
-  }, [cargarCargarCandidatos => cargarCandidatos()]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [cargarCandidatos])
 
   const moverEtapa = async (candidatoId: string, nuevaEtapa: string) => {
     setActualizandoId(candidatoId)
