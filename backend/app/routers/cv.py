@@ -4,7 +4,7 @@ import re
 import unicodedata
 from decimal import Decimal
 from typing import Optional
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import (
     APIRouter,
@@ -71,7 +71,12 @@ def upload_cv(
     if archivo.content_type != "application/pdf":
         raise HTTPException(status_code=400, detail="El archivo debe ser un PDF")
 
-    vacante = db.get(Vacante, id_vacante)
+    vacante = db.scalar(
+        select(Vacante).where(
+            Vacante.id_vacante == id_vacante,
+            Vacante.id_usuario == usuario.id_usuario,
+        )
+    )
     if vacante is None:
         raise HTTPException(status_code=404, detail="Vacante no encontrada")
 
@@ -86,8 +91,8 @@ def upload_cv(
     try:
         texto = pdf_service.extraer_texto_de_pdf(contenido)
         logger.debug(f"Texto extraído exitosamente. Total caracteres: {len(texto)}")
-    except Exception as exc:
-        raise HTTPException(status_code=422, detail=f"No se pudo leer el PDF: {exc}")
+    except Exception:
+        raise HTTPException(status_code=422, detail="No se pudo leer el PDF")
 
     # 2. Ahora sí, validamos el volumen de texto de forma segura
     if len(texto) > _MAX_CARACTERES_CV:
@@ -103,12 +108,13 @@ def upload_cv(
     nombre_original = archivo.filename or "cv.pdf"
     nombre_sin_tildes = unicodedata.normalize('NFKD', nombre_original).encode('ASCII', 'ignore').decode('utf-8')
     nombre_limpio = re.sub(r'[^\w\.-]', '_', nombre_sin_tildes)
+    nombre_limpio = f"{uuid4()}-{nombre_limpio}"
 
     # Subida a Supabase Storage con el nombre limpio
     try:
         url = storage_service.subir_cv(contenido, nombre_limpio)
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Error al subir a Storage: {exc}")
+    except Exception:
+        raise HTTPException(status_code=502, detail="No se pudo almacenar el PDF")
 
     # Postulante: reusar por correo si viene, si no crear uno
     postulante: Optional[Postulante] = None
@@ -175,10 +181,17 @@ def _ejecutar_analisis_cv(id_curriculum: UUID, db: Session) -> AnalizarResponse:
             requeridas_obligatorias=obligatorias,
             requeridas_opcionales=opcionales,
         )
-    except Exception as exc:
+    except groq_service.GroqApiError as exc:
         curriculum.estado_lectura = "error_lectura"
         db.commit()
-        raise HTTPException(status_code=502, detail=f"Error al analizar con IA: {exc}")
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except Exception:
+        curriculum.estado_lectura = "error_lectura"
+        db.commit()
+        raise HTTPException(
+            status_code=502,
+            detail="Error interno al analizar con IA. Revisa los logs del backend.",
+        )
 
     analisis = resultado.analisis
     if not analisis.es_cv:
@@ -279,7 +292,14 @@ def analizar_cv(
     Si async_mode=True, encola la tarea con BackgroundTasks y responde 202 de inmediato.
     Si async_mode=False (default), ejecuta síncronamente y retorna AnalizarResponse.
     """
-    curriculum = db.get(Curriculum, id_curriculum)
+    curriculum = db.scalar(
+        select(Curriculum)
+        .join(Vacante, Vacante.id_vacante == Curriculum.id_vacante)
+        .where(
+            Curriculum.id_curriculum == id_curriculum,
+            Vacante.id_usuario == usuario.id_usuario,
+        )
+    )
     if curriculum is None:
         raise HTTPException(status_code=404, detail="Curriculum no encontrado")
 
@@ -303,7 +323,14 @@ def estado_analisis(
     usuario: Usuario = Depends(get_current_user),
 ) -> dict:
     """Consulta el estado del procesamiento y evaluación de un CV."""
-    curriculum = db.get(Curriculum, id_curriculum)
+    curriculum = db.scalar(
+        select(Curriculum)
+        .join(Vacante, Vacante.id_vacante == Curriculum.id_vacante)
+        .where(
+            Curriculum.id_curriculum == id_curriculum,
+            Vacante.id_usuario == usuario.id_usuario,
+        )
+    )
     if curriculum is None:
         raise HTTPException(status_code=404, detail="Curriculum no encontrado")
 
@@ -337,7 +364,14 @@ def scoring_simple(
     usuario: Usuario = Depends(get_current_user),
 ) -> ScoringResponse:
     """Score determinista (sin IA): habilidades del CV vs requisitos de su vacante."""
-    curriculum = db.get(Curriculum, id_curriculum)
+    curriculum = db.scalar(
+        select(Curriculum)
+        .join(Vacante, Vacante.id_vacante == Curriculum.id_vacante)
+        .where(
+            Curriculum.id_curriculum == id_curriculum,
+            Vacante.id_usuario == usuario.id_usuario,
+        )
+    )
     if curriculum is None:
         raise HTTPException(status_code=404, detail="Curriculum no encontrado")
     return calcular_scoring_simple(db, id_curriculum, curriculum.id_vacante)

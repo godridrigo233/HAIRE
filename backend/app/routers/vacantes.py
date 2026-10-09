@@ -206,7 +206,10 @@ def obtener_vacante(
                 VacanteRequerimiento.habilidad
             )
         )
-        .where(Vacante.id_vacante == id_vacante)
+        .where(
+            Vacante.id_vacante == id_vacante,
+            Vacante.id_usuario == usuario.id_usuario,
+        )
     )
     if vacante is None:
         raise HTTPException(status_code=404, detail="Vacante no encontrada")
@@ -226,6 +229,14 @@ def candidatos_de_vacante(
     usuario: Usuario = Depends(get_current_user),
 ) -> PaginatedCandidatos:
     """Ranking de candidatos evaluados con filtros y paginación."""
+    existe = db.scalar(
+        select(Vacante.id_vacante).where(
+            Vacante.id_vacante == id_vacante,
+            Vacante.id_usuario == usuario.id_usuario,
+        )
+    )
+    if existe is None:
+        raise HTTPException(status_code=404, detail="Vacante no encontrada")
     items, total = listar_candidatos_de_vacante(
         db, id_vacante, q, page, page_size, min_porcentaje, es_recomendado, etapa
     )

@@ -18,6 +18,10 @@ settings = get_settings()
 _GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 _TIMEOUT_SEG = 20.0
 
+
+class GroqApiError(RuntimeError):
+    """Error seguro para mostrar al cliente sin filtrar detalles internos."""
+
 _SYSTEM_PROMPT = (
     "Eres un analista de reclutamiento experto. Tu primera tarea crítica es verificar si el texto "
     "recibido es realmente un Currículum Vitae (CV) o perfil profesional. "
@@ -145,8 +149,8 @@ def analizar_cv(
 ) -> ResultadoAnalisis:
     """Llama a Groq, valida el JSON con Pydantic y devuelve el resultado + trazas."""
     api_key = (settings.groq_api_key or "").strip()
-    if not api_key or "REEMPLAZA" in api_key:
-        raise ValueError(
+    if not api_key or "REEMPLAZA" in api_key or api_key.startswith("<") or len(api_key) < 20:
+        raise GroqApiError(
             "La variable GROQ_API_KEY no está configurada. "
             "Define una API key válida de Groq en las variables de entorno."
         )
@@ -196,21 +200,23 @@ def analizar_cv(
                     json=payload,
                 )
         except httpx.RequestError as exc:
-            raise RuntimeError(f"Error de conexión con la API de Groq: {exc}") from exc
+            raise GroqApiError("No se pudo conectar con la API de Groq.") from exc
 
         if resp.status_code != 200:
-            detalle = resp.text
-            try:
-                error_data = resp.json()
-                if "error" in error_data and "message" in error_data["error"]:
-                    detalle = error_data["error"]["message"]
-            except Exception:
-                pass
-
-            ultimo_error = f"Groq ({resp.status_code}): {detalle}"
+            ultimo_error = f"HTTP {resp.status_code}"
             if resp.status_code == 404:
                 continue
-            raise RuntimeError(f"Groq API error ({resp.status_code}): {detalle}")
+            if resp.status_code == 401:
+                raise GroqApiError(
+                    "La clave de Groq no es válida o fue revocada. Configura una nueva GROQ_API_KEY."
+                )
+            if resp.status_code == 429:
+                raise GroqApiError(
+                    "Groq alcanzó el límite de solicitudes. Espera unos segundos y vuelve a intentar."
+                )
+            raise GroqApiError(
+                f"Groq no pudo procesar la solicitud ({ultimo_error})."
+            )
 
         tiempo_ms = int((time.perf_counter() - inicio_total) * 1000)
         data = resp.json()
@@ -239,6 +245,6 @@ def analizar_cv(
             tiempo_respuesta_ms=tiempo_ms,
         )
 
-    raise RuntimeError(
-        f"No se pudo completar el análisis con ningún modelo de Groq. Último error: {ultimo_error}"
+    raise GroqApiError(
+        f"No se pudo completar el análisis con ningún modelo de Groq. Último error: {ultimo_error or 'sin respuesta'}"
     )

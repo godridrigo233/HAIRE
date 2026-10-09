@@ -8,6 +8,18 @@ import type { UsuarioSesion } from "@/lib/auth"
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "http://localhost:8000"
 
+type ListaVacantes = { total: number; items: Vacante[] }
+
+let vacantesCache = new Map<string, { data: ListaVacantes; expiresAt: number }>()
+let vacantesRequests = new Map<string, Promise<ListaVacantes>>()
+let vacantesCacheEpoch = 0
+
+function invalidarVacantesCache() {
+  vacantesCacheEpoch += 1
+  vacantesCache.clear()
+  vacantesRequests.clear()
+}
+
 export class ApiError extends Error {
   status: number
   constructor(status: number, message: string) {
@@ -131,23 +143,45 @@ export const api = {
       { method: "POST", body: JSON.stringify({ correo, password }) },
       false,
     )
+    invalidarVacantesCache()
     return { token: data.access_token, usuario: data.usuario }
   },
 
-  async listarVacantes(params?: { q?: string; page?: number; page_size?: number }): Promise<{ total: number; items: Vacante[] }> {
+  async listarVacantes(params?: { q?: string; page?: number; page_size?: number }): Promise<ListaVacantes> {
     const qs = new URLSearchParams()
     if (params?.q) qs.set('q', params.q)
     if (params?.page) qs.set('page', String(params.page))
     if (params?.page_size) qs.set('page_size', String(params.page_size))
     const suffix = qs.toString() ? `?${qs.toString()}` : ''
-    const data = await request<any>(`/vacantes${suffix}`)
-    if (Array.isArray(data)) {
-      return { total: data.length, items: data.map(mapVacante) }
-    }
-    if (data && Array.isArray(data.items)) {
-      return { total: data.total ?? data.items.length, items: data.items.map(mapVacante) }
-    }
-    return { total: 0, items: [] }
+    const epoch = vacantesCacheEpoch
+    const cacheKey = `${epoch}:${suffix}`
+    const cached = vacantesCache.get(cacheKey)
+    if (cached && cached.expiresAt > Date.now()) return cached.data
+
+    const existingRequest = vacantesRequests.get(cacheKey)
+    if (existingRequest) return existingRequest
+
+    const pendingRequest = request<any>(`/vacantes${suffix}`)
+      .then((data): ListaVacantes => {
+        if (Array.isArray(data)) {
+          return { total: data.length, items: data.map(mapVacante) }
+        }
+        if (data && Array.isArray(data.items)) {
+          return { total: data.total ?? data.items.length, items: data.items.map(mapVacante) }
+        }
+        return { total: 0, items: [] }
+      })
+      .then((data) => {
+        if (epoch === vacantesCacheEpoch) {
+          vacantesCache.set(cacheKey, { data, expiresAt: Date.now() + 30_000 })
+        }
+        return data
+      })
+      .finally(() => {
+        vacantesRequests.delete(cacheKey)
+      })
+    vacantesRequests.set(cacheKey, pendingRequest)
+    return pendingRequest
   },
 
   async getVacante(id: string): Promise<Vacante> {
@@ -160,12 +194,14 @@ export const api = {
     experiencia_minima_anios: number
     requerimientos: { nombre: string; es_obligatoria: boolean }[]
   }): Promise<Vacante> {
-    return mapVacante(
+    const vacante = mapVacante(
       await request<VacanteApi>("/vacantes", {
         method: "POST",
         body: JSON.stringify(payload),
       }),
     )
+    invalidarVacantesCache()
+    return vacante
   },
 
   async getCandidatosDeVacante(
@@ -213,6 +249,7 @@ export const api = {
   // Analiza un curriculum ya subido (llamada a Groq en el backend).
   async analizarCv(idCurriculum: string): Promise<void> {
     await request(`/cv/${idCurriculum}/analizar`, { method: "POST" })
+    invalidarVacantesCache()
   },
 
   async estadoAnalisis(idCurriculum: string): Promise<{

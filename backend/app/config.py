@@ -4,7 +4,7 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import List
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -28,7 +28,17 @@ class Settings(BaseSettings):
 
     # Groq
     groq_api_key: str = Field(default="", alias="GROQ_API_KEY")
-    groq_model: str = Field(default="llama-3.3-70b-versatile", alias="GROQ_MODEL")
+    groq_model: str = Field(default="qwen/qwen3.8-27b", alias="GROQ_MODEL")
+
+    @field_validator("groq_api_key", mode="before")
+    @classmethod
+    def validar_groq_api_key(cls, value: str) -> str:
+        value = str(value).strip().strip('"\'')
+        if not value or value.startswith("<") or len(value) < 20:
+            raise ValueError(
+                "GROQ_API_KEY no está configurada. Genera una key nueva en console.groq.com."
+            )
+        return value
 
     # JWT
     jwt_secret: str = Field(

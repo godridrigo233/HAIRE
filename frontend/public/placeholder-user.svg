@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 600 600" fill="none">
+  <rect width="600" height="600" rx="34" fill="#183B3C"/>
+  <circle cx="465" cy="114" r="62" fill="#E8795C"/>
+  <path d="m45 390 104-117 60 23 103-159 62 92 49 12 130 149H45Z" fill="#789798"/>
+  <path d="m309 137 44 62-25-10-18 22-23-12-22 30-18-7 16-26-9-5 30-54 25-14Z" fill="#E7E4D5"/>
+  <path d="m353 199 59 87 49 12 101 112H183l67-76 28 7 23-34 19 5 20-27-19-7 15-31Z" fill="#527777"/>
+  <path d="M79 345h442v91H79z" fill="#D9CFB7"/>
+  <path d="M79 345h442v17H79z" fill="#F0E6D1"/>
+  <path d="M95 345v-48h74v48m13 0v-65h84v65m15 0v-53h79v53m15 0v-66h79v66m13 0v-44h52v44" fill="#E9DFC9" stroke="#B6AA91" stroke-width="5"/>
+  <path d="M207 345v-36c0-19 29-19 29 0v36m29 0v-36c0-19 29-19 29 0v36m-76-46h72m66 46v-35c0-19 29-19 29 0v35m-76-45h72m78 45v-32c0-19 29-19 29 0v32" stroke="#9B907C" stroke-width="5"/>
+  <path d="M0 447h600v153H0z" fill="#102F31"/>
+  <path d="M0 447h600" stroke="#F0C879" stroke-width="4"/>
+  <rect x="44" y="481" width="133" height="67" rx="15" fill="#F5EEDC"/>
+  <path d="M64 497h16v28H64z" stroke="#183B3C" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M69 505h7m-7 7h7m-7 7h5" stroke="#E8795C" stroke-width="3" stroke-linecap="round"/>
+  <text x="116" y="522" text-anchor="middle" font-family="sans-serif" font-size="22" font-weight="700" fill="#183B3C">CV</text>
+  <path d="M185 514h39m-11-11 11 11-11 11" stroke="#F0C879" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="237" y="481" width="126" height="67" rx="15" fill="#75B5A1"/>
+  <path d="m270 512 9-17 9 17 17 9-17 8-9 17-9-17-17-8 17-9Z" fill="#183B3C"/>
+  <text x="333" y="522" text-anchor="middle" font-family="sans-serif" font-size="20" font-weight="700" fill="#183B3C">IA</text>
+  <path d="M371 514h36m-11-11 11 11-11 11" stroke="#F0C879" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="421" y="481" width="135" height="67" rx="15" fill="#E8795C"/>
+  <path d="M439 520v-16m13 16v-25m13 25v-20" stroke="#F5EEDC" stroke-width="6" stroke-linecap="round"/>
+  <text x="509" y="522" text-anchor="middle" font-family="sans-serif" font-size="17" font-weight="700" fill="#183B3C">TOP</text>
+</svg>

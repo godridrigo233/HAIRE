@@ -5,7 +5,7 @@ PDF y análisis de compatibilidad con IA (Groq), sobre la base de datos de Supab
 
 ## Requisitos
 
-- Python 3.11 recomendado (funciona con 3.9+).
+- Python 3.11 recomendado (Render queda fijado a 3.11.9 en `runtime.txt`).
 - Acceso al proyecto de Supabase (URL, service_role key y connection string de la BD).
 - Una API key de Groq.
 
@@ -20,6 +20,13 @@ pip install -r requirements.txt
 cp .env.example .env               # y rellenar los valores reales
 uvicorn app.main:app --reload --port 8000
 ```
+
+## Deploy en Render
+
+El archivo `render.yaml` en la raíz deja configurado el servicio web, el directorio
+`backend`, el comando de arranque y el modelo de Groq. Al crear el Blueprint, Render
+solicitará las variables marcadas con `sync: false`; pega allí los valores reales y no
+los guardes en el repositorio.
 
 - Docs interactivas (Swagger): http://localhost:8000/docs
 - Health check: http://localhost:8000/

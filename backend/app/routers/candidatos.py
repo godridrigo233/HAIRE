@@ -23,6 +23,16 @@ def detalle_candidato(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_current_user),
 ) -> CandidatoOut:
+    autorizado = db.scalar(
+        select(Evaluacion.id_evaluacion)
+        .join(Vacante, Vacante.id_vacante == Evaluacion.id_vacante)
+        .where(
+            Evaluacion.id_evaluacion == id_evaluacion,
+            Vacante.id_usuario == usuario.id_usuario,
+        )
+    )
+    if autorizado is None:
+        raise HTTPException(status_code=404, detail="Candidato no encontrado")
     candidato = obtener_candidato(db, id_evaluacion)
     if candidato is None:
         raise HTTPException(status_code=404, detail="Candidato no encontrado")
